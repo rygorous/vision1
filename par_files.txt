@@ -1,0 +1,55 @@
+known commands:
+
+color <index> <r> <g> <b>
+	
+	set palette entry <index>
+
+cycle <start> <end> <fps?> <???>
+
+	start color cycling
+
+fade out <nsecs>
+
+	fade current palette out over nsecs
+
+fade in <nsecs>
+
+	fade palette b(?) in over nsecs
+
+mega <grafile> <prefix> <framestart> <frameend> <x0> <y0> <fps> <???1> <???2>
+
+	play animation
+
+off
+	
+	???
+
+pic <filename> [b]
+
+	load <filename> as current background picture
+	if b specified: set as palette b (?)
+
+song load <name> <volume?>
+
+	loads CMF file
+
+song in
+
+	play with fade in
+
+song play
+
+	plays current tune
+
+song out
+
+	start fading current tune out
+
+song stop
+
+	stops playing current tune
+
+wait <delay>
+
+	wait until prev. event complete
+	or, if delay specified, delay/10 seconds
