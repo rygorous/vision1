@@ -23,7 +23,7 @@ void errorExit(const char *fmt, ...)
 	vsprintf(buffer, fmt, arg);
 	va_end(arg);
 
-	MessageBox(hWnd, buffer, "imgresize", MB_ICONERROR|MB_OK);
+	MessageBox(hWnd, buffer, "vision1", MB_ICONERROR|MB_OK);
 	exit(1);
 }
 
@@ -144,12 +144,32 @@ static void createWindow(HINSTANCE hInstance)
 		errorExit("CreateWindow failed!\n");
 }
 
+static Font bigfont;
+
+static const U8 fontpal_big_default[16] = {
+    0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
+    0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
+};
+
+static const U8 fontpal_small_default[16] = {
+    0xf0, 0xf1, 0xf2, 0xf3, 0x30, 0x2a, 0x25, 0x16,
+    0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
+};
+
 static void init()
 {
-#if 1
+    init_vars();
+
+#if 0
     display_pic("grafix/back01.pic");
     display_face("chars/elo/face.frz");
 #endif
+
+    bigfont.load("grafix/zsatz.blk", true, fontpal_big_default);
+    //fix_palette();
+
+    //load_background("grafix/dock_l.pic");
+    //load_background("grafix/dextras.mix");
 
     //display_blk("grafix/zsatz.blk");
     // figure out where "font metrics" are stored?
@@ -161,11 +181,27 @@ static void init()
     //display_hot("grafix/dock_l.hot");
 
     //display_pic("grafix/erlebhot.pic");
-    display_pic("grafix/infolift.pi");
+    //display_pic("grafix/braun.pic");
 
     //display_raw_pic("grafix/int_wolk.pic");
     //display_gra("ani/intro.gra");
     //display_gra("grafix/roomset.gra");
+
+    decode_level("../game/data/levels.dat", 1);
+    // look directions: (GANGD)
+    // 0 = outside (+y)
+    // 1 = inside (-y)
+    // 2 = cw (-x)
+    // 3 = ccw (+x)
+    // in maps:
+    // 00 = accessible
+    // 07 = skip this column
+    // 80 = blocked
+
+    int sz;
+    U8 *scr = read_xored("data/dextras.par", &sz);
+    run_script(scr, sz, true);
+    delete[] scr;
 }
 
 static void update()
@@ -187,14 +223,14 @@ static void update()
         // newspics.gra: pics for infotimes
 
         //display_pic("grafix/braun.pic");
-        static const char *bkgnd = "grafix/vision4.pi";
-        static const char *grafile = "ani/vision4.gra";
+        /*static const char *bkgnd = "grafix/braun.pic";
+        static const char *grafile = "grafix/wand01.gra";
 
         if (!display_gra(grafile, frame)) {
             frame = 0;
-            display_pic(bkgnd);
+            //display_pic(bkgnd);
             display_gra(grafile, frame);
-        }
+        }*/
 
         frame++;
     }

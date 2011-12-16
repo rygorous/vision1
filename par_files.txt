@@ -53,3 +53,9 @@ wait <delay>
 
 	wait until prev. event complete
 	or, if delay specified, delay/10 seconds
+
+aussteig$:
+level 0 '--------+-------------------------+--------'
+level 1 '---+++--+------------------+---+--+--------'
+level 2 '-+++++--++-+----+-+--+-----++-++--++-+++---'
+level 3 '-+++++++++++-++-+-+--+-----+++++++++++++++-'

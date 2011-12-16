@@ -74,13 +74,18 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="font.cpp" />
+    <ClCompile Include="graphics.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="script.cpp" />
     <ClCompile Include="util.cpp" />
+    <ClCompile Include="vars.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\paste1.txt" />
     <None Include="par_files.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
