@@ -31,6 +31,7 @@ extern U8 vga_screen[WIDTH * HEIGHT];
 extern Palette vga_pal;
 
 void errorExit(const char *fmt, ...);
+void frame();
 
 // util
 struct Buffer;
@@ -110,7 +111,11 @@ struct GfxBlock
     int w, h;
 };
 
+extern Palette palette_a, palette_b;
+
 void fix_palette();
+void set_palette();
+void set_palb_fade(int intensity);
 void load_background(const char *filename);
 
 // font

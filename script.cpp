@@ -121,6 +121,14 @@ static std::string str_value_word()
         return str_value(scan_word());
 }
 
+static bool is_equal(const Slice &value, const char *str)
+{
+    U32 pos = 0;
+    while (pos < value.len() && str[pos] && tolower(value[pos]) == str[pos])
+        pos++;
+    return pos == value.len();
+}
+
 // ---- command functions
 
 static void cmd_if()
@@ -143,6 +151,57 @@ static void cmd_pic()
 {
     Slice filename = scan_word();
     load_background(to_string(filename).c_str());
+
+    Slice other = scan_word();
+    if (is_equal(other, "b")) {
+        memcpy(palette_b, palette_a, sizeof(Palette));
+        set_palette();
+    }
+    else
+        set_palette();
+}
+
+static void cmd_keyenable()
+{
+    int flag = int_value_word();
+    // TODO use this :)
+    flag = flag;
+}
+
+static void cmd_song()
+{
+    // just ignored for now
+}
+
+static void cmd_fade()
+{
+    Slice dir = scan_word();
+    int duration = int_value_word();
+    duration = duration * 7; // is in tenths of seconds, want 70fps steps
+
+    if (is_equal(dir, "in")) {
+        for (int i=1; i <= duration; i++) {
+            set_palb_fade(256 * i / duration);
+            frame();
+        }
+    } else if (is_equal(dir, "out")) {
+        for (int i=duration-1; i >= 0; i--) {
+            set_palb_fade(256 * i / duration);
+            frame();
+        }
+    } else
+        errorExit("unknown fade direction");
+}
+
+static void cmd_exec()
+{
+    Slice what = scan_word();
+    if (is_equal(what, "dialog")) {
+    } else {
+        printf("don't know how to exec: ");
+        print(what);
+        printf("\n");
+    }
 }
 
 static struct CommandDesc
@@ -151,9 +210,13 @@ static struct CommandDesc
     int prefixlen;
     void (*exec)();
 } commands[] = {
-    "if",       2,  cmd_if,
-    "set",      2,  cmd_set,
-    "pic",      2,  cmd_pic,
+    "if",           2,  cmd_if,
+    "set",          2,  cmd_set,
+    "pic",          2,  cmd_pic,
+    "keyenable",    2,  cmd_keyenable,
+    "song",         2,  cmd_song,
+    "fade",         2,  cmd_fade,
+    "exec",         2,  cmd_exec,
 };
 
 void run_script(Slice code, bool init)

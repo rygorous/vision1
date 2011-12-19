@@ -1,4 +1,3 @@
-#define WIN32_LEAN_AND_MEAN
 #define _CRT_SECURE_NO_DEPRECATE
 #include <Windows.h>
 #include <stdio.h>
@@ -6,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "common.h"
+
+#pragma comment(lib, "winmm.lib")
 
 U8 vga_screen[WIDTH * HEIGHT];
 PalEntry vga_pal[256];
@@ -198,7 +199,7 @@ static void init()
     // 07 = skip this column
     // 80 = blocked
 
-    Slice s = read_xored("data/dextras.par");
+    Slice s = read_xored("data/init.par");
     run_script(s, true);
 }
 
@@ -239,31 +240,62 @@ static void render()
 {
 }
 
+static bool msgloop()
+{
+    MSG msg;
+
+    while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {
+        if (msg.message == WM_QUIT)
+            return false;
+
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+
+    return true;
+}
+
+void frame()
+{
+    static U32 framelen = 14; // TODO make better!
+    static U32 framestart = 0;
+
+    // TODO mouse cursor handling here
+
+    HDC hdc = GetDC(hWnd);
+    paint(hWnd, hdc);
+    ReleaseDC(hWnd, hdc);
+
+    for (;;) {
+        U32 now = timeGetTime();
+        if (now - framestart < framelen)
+            Sleep(1);
+        else {
+            framestart = now;
+            break;
+        }
+    }
+}
+
 int main(int argc, char **argv)
 {
     HINSTANCE hInstance = GetModuleHandle(NULL);
     createWindow(hInstance);
 
 	ShowWindow(hWnd, SW_SHOW);
+    timeBeginPeriod(1);
 
     init();
 
     for (;;) {
-        MSG msg;
-
-        if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {
-            if (msg.message == WM_QUIT)
-                break;
-
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        } else {
+        if (!msgloop())
+            break;
+        else {
             update();
             render();
-
-            HDC hdc = GetDC(hWnd);
-            paint(hWnd, hdc);
-            ReleaseDC(hWnd, hdc);
+            frame();
         }
     }
+
+    timeEndPeriod(1);
 }

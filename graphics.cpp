@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+Palette palette_a, palette_b;
+
 GfxBlock::GfxBlock()
 {
     pixels = 0;
@@ -41,7 +43,7 @@ void GfxBlock::resize(int neww, int newh)
     h = newh;
 }
 
-void fix_palette()
+void fix_palette(Palette pal)
 {
     static const PalEntry defaultHighPal[8] = {
         {  0,  0,  0 },
@@ -54,8 +56,22 @@ void fix_palette()
         { 63, 56,  9 },
     };
 
-    vga_pal[0].r = vga_pal[0].g = vga_pal[0].b = 0;
-    memcpy(&vga_pal[0xf8], defaultHighPal, 8 * sizeof(PalEntry));
+    pal[0].r = pal[0].g = pal[0].b = 0;
+    memcpy(&pal[0xf8], defaultHighPal, 8 * sizeof(PalEntry));
+}
+
+void set_palette()
+{
+    memcpy(vga_pal, palette_a, sizeof(Palette));
+}
+
+void set_palb_fade(int intensity)
+{
+    for (int i=0; i < 256; i++) {
+        vga_pal[i].r = (palette_b[i].r * intensity) >> 8;
+        vga_pal[i].g = (palette_b[i].g * intensity) >> 8;
+        vga_pal[i].b = (palette_b[i].b * intensity) >> 8;
+    }
 }
 
 // ---- .mix files
@@ -67,12 +83,12 @@ struct MixItem {
     U8 flipX;
 };
 
-static void scale_palette(int numColors, int r, int g, int b)
+static void scale_palette(Palette pal, int numColors, int r, int g, int b)
 {
     for (int i=0; i < numColors; i++) {
-        vga_pal[i].r = MIN(vga_pal[i].r * r / 100, 63);
-        vga_pal[i].g = MIN(vga_pal[i].g * g / 100, 63);
-        vga_pal[i].b = MIN(vga_pal[i].b * b / 100, 63);
+        pal[i].r = MIN(pal[i].r * r / 100, 63);
+        pal[i].g = MIN(pal[i].g * g / 100, 63);
+        pal[i].b = MIN(pal[i].b * b / 100, 63);
     }
 }
 
@@ -93,7 +109,7 @@ static void decode_mix(MixItem *items, int count, const char *vbFilename)
 {
     // background
     load_background(PascalStr(items->pasNameStr));
-    scale_palette(128, items->para1l, items->para2, items->para3);
+    scale_palette(palette_a, 128, items->para1l, items->para2, items->para3);
     if (items->flipX)
         flipx_screen();
 
@@ -159,7 +175,7 @@ void load_background(const char *filename)
                 decode_delta(vga_screen, &s[768]);
         }
 
-        memcpy(vga_pal, &s[0], 768);
-        fix_palette();
+        memcpy(palette_a, &s[0], 768);
+        fix_palette(palette_a);
     }
 }
