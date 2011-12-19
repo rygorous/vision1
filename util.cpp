@@ -6,6 +6,82 @@
 #include <assert.h>
 #include <ctype.h>
 
+// ---- slices
+
+struct Buffer
+{
+    U8 *data;
+    U32 nrefs;
+
+    Buffer(U32 capacity)
+    {
+        data = new U8[capacity];
+        nrefs = 0;
+
+        if (!data)
+            errorExit("out of memory");
+    }
+
+    ~Buffer()
+    {
+        delete[] data;
+    }
+
+    void ref()      { if (this) nrefs++; }
+    void unref()    { if (this && --nrefs == 0) delete this; }
+};
+
+Slice::Slice()
+    : buf(0), ptr(0), length(0)
+{
+}
+
+Slice::Slice(Buffer *b, U32 len)
+    : buf(b), ptr(b->data), length(len)
+{
+    buf->ref();
+}
+
+Slice::Slice(const Slice &x)
+    : buf(x.buf), ptr(x.ptr), length(x.length)
+{
+    buf->ref();
+}
+
+Slice::~Slice()
+{
+    buf->unref();
+}
+
+Slice Slice::make(U32 nbytes)
+{
+    return Slice(new Buffer(nbytes), nbytes);
+}
+
+Slice &Slice::operator =(const Slice &x)
+{
+    x.buf->ref();
+    buf->unref();
+    buf = x.buf;
+    ptr = x.ptr;
+    length = x.length;
+    return *this;
+}
+
+const Slice Slice::operator()(U32 start, U32 end) const
+{
+    if (end < start)
+        return Slice();
+
+    if (start > length) start = length;
+    if (end > length)   end = length;
+
+    Slice s(*this);
+    s.ptr += start;
+    s.length = end - start;
+    return s;
+}
+
 // ---- string handling
 
 PascalStr::PascalStr(const U8 *pstr)
@@ -58,43 +134,27 @@ static int fsize(FILE *f)
     return sz;
 }
 
-U8 *try_read_file(const char *filename, int *size)
+Slice try_read_file(const char *filename)
 {
     FILE *f = fopen(filename, "rb");
     if (!f)
-        return 0;
+        return Slice();
 
     int sz = fsize(f);
-    U8 *buf = new U8[sz];
-    if (!buf) {
-        fclose(f);
-        errorExit("out of memory");
-    }
+    Slice s = Slice::make(sz);
 
-    fread(buf, sz, 1, f);
+    fread(&s[0], sz, 1, f);
     fclose(f);
 
-    if (size) *size = sz;
-
-    return buf;
+    return s;
 }
 
-U8 *read_file(const char *filename, int *size)
+Slice read_file(const char *filename)
 {
-    U8 *out = try_read_file(filename, size);
-    if (!out)
+    Slice s = try_read_file(filename);
+    if (!s)
         errorExit("%s not found", filename);
-    return out;
-}
-
-void read_file_to(void *buf, const char *filename)
-{
-    FILE *f = fopen(filename, "rb");
-    if (!f)
-        errorExit("%s not found", filename);
-
-    fread(buf, fsize(f), 1, f);
-    fclose(f);
+    return s;
 }
 
 void write_file(const char *filename, const void *buf, int size)
@@ -107,22 +167,15 @@ void write_file(const char *filename, const void *buf, int size)
     fclose(f);
 }
 
-U8 *read_xored(const char *filename, int *size)
+Slice read_xored(const char *filename)
 {
-    int sz, start;
-    if (!size)
-        size = &sz;
+    Slice s = read_file(filename);
+    if (!s || s.len() < 2)
+        return s;
 
-    U8 *bytes = read_file(filename, size);
-    if (!bytes || *size < 2)
-        return bytes;
-
-    decrypt(bytes, *size, &start);
-    if (start) {
-        *size -= start;
-        memcpy(bytes, bytes + start, *size);
-    }
-    return bytes;
+    int start;
+    decrypt(&s[0], s.len(), &start);
+    return s(start);
 }
 
 // ---- decoding helpers
@@ -248,9 +301,9 @@ void decrypt(U8 *buffer, int nbytes, int *start)
         *start = 0;
 }
 
-int find_gra_item(U8 *grafile, const char *name, U8 *type)
+int find_gra_item(Slice grafile, const char *name, U8 *type)
 {
-    int dir_size = little_u16(grafile);
+    int dir_size = little_u16(&grafile[0]);
     int pos = 2;
     while (pos < dir_size) {
         int len = 0, matchlen = 0;
@@ -264,8 +317,8 @@ int find_gra_item(U8 *grafile, const char *name, U8 *type)
 
         if (len == matchlen && !name[matchlen]) { // found our file
             *type = grafile[pos];
-            int offs = little_u16(grafile + pos + 1);
-            int seg = little_u16(grafile + pos + 3);
+            int offs = little_u16(&grafile[pos + 1]);
+            int seg = little_u16(&grafile[pos + 3]);
             return dir_size + (seg << 4) + offs;
         }
 
@@ -287,45 +340,38 @@ static void overlay(U8 *dst, U8 *src, int count)
 
 void display_raw_pic(const char *filename)
 {
-    int size;
-    U8 *bytes = read_file(filename, &size);
-    assert(size == WIDTH*HEIGHT + 256*sizeof(PalEntry));
+    Slice s = read_file(filename);
+    assert(s.len() == WIDTH*HEIGHT + sizeof(Palette));
 
-    memcpy(vga_pal, bytes, 256 * sizeof(PalEntry));
-    memcpy(vga_screen, bytes + 256 * sizeof(PalEntry), WIDTH * HEIGHT);
-
-    delete[] bytes;
+    memcpy(vga_pal, &s[0], sizeof(Palette));
+    memcpy(vga_screen, &s[sizeof(Palette)], WIDTH * HEIGHT);
 }
 
 void display_pic(const char *filename)
 {
-    int size;
-    U8 *bytes = read_file(filename, &size);
-    U8 *p = bytes;
+    Slice s = read_file(filename);
+    U8 *p = &s[0];
 
-    memcpy(vga_pal, p, 256 * sizeof(PalEntry));
-    p += 256 * sizeof(PalEntry);
+    memcpy(vga_pal, p, sizeof(Palette));
+    p += sizeof(Palette);
 
     // TODO do something with this!
     int w = get_le16(p);
     int h = get_le16(p);
 
     decode_rle(vga_screen, p);
-    delete[] bytes;
 }
 
 void display_hot(const char *filename)
 {
-    int size;
-    U8 *bytes = read_file(filename, &size);
-    U8 *p = bytes;
+    Slice s = read_file(filename);
+    U8 *p = &s[0];
 
     int w = get_le16(p);
     int h = get_le16(p);
 
     U8 *buf = new U8[w*h];
     decode_rle(buf, p);
-    delete[] bytes;
 
     // no clue why it's stored the way it is...
     w /= 2;
@@ -345,10 +391,8 @@ void display_hot(const char *filename)
 
 void display_face(const char *filename)
 {
-    int size;
-    U8 *bytes = read_file(filename, &size);
-    U8 *p = bytes;
-    U8 *end = p + size;
+    Slice s = read_file(filename);
+    U8 *p = &s[0];
 
     // skip first 128 pal entries
     // TODO figure out how actual palette remapping works in game
@@ -357,14 +401,12 @@ void display_face(const char *filename)
     p += 128 * sizeof(PalEntry);
 
     decode_delta(vga_screen, p);
-    delete[] bytes;
 }
+
 bool display_gra(const char *filename, int index)
 {
-    int size;
-    U8 *bytes = read_file(filename, &size);
-    U8 *p = bytes;
-    U8 *end = p + size;
+    Slice s = read_file(filename);
+    U8 *p = &s[0];
 
     int dir_size = little_u16(p);
     int start_offs = dir_size;
@@ -385,10 +427,8 @@ bool display_gra(const char *filename, int index)
         name[len++] = 0;
         pos += len;
 
-        if (len == 1) {
-            delete[] bytes;
+        if (len == 1)
             return false;
-        }
 
         U16 offs = little_u16(p + pos + 0);
         U16 seg = little_u16(p + pos + 2);
@@ -423,21 +463,18 @@ bool display_gra(const char *filename, int index)
     } else
         printf("UNKNOWN TYPE 0x%x!\n", type);
 
-    delete[] bytes;
-
     return true;
 }
 
 void display_blk(const char *filename)
 {
-    U8 *bytes = read_file(filename);
-    U8 *p = bytes;
+    Slice s = read_file(filename);
+    U8 *p = &s[0];
 
     int w = get_le16(p);
     int h = get_le16(p);
     U8 *buf = new U8[w*h];
     decode_rle(buf, p);
-    delete[] bytes;
 
     int x0 = (WIDTH - w) / 2;
     int y0 = (HEIGHT - h) / 2;
@@ -461,7 +498,8 @@ static void decodeLevelRLE(U8 *dest, U8 *&src)
 
 void decode_level(const char *filename, int level)
 {
-    U8 *bytes = read_file(filename);
+    Slice s = read_file(filename);
+    U8 *bytes = &s[0];
     
     int offs = little_u16(bytes + level*2);
     int size = little_u16(bytes + level*2 + 2) - offs;

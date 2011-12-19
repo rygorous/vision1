@@ -25,12 +25,44 @@ struct PalEntry {
     U8 r, g, b;
 };
 
+typedef PalEntry Palette[256];
+
 extern U8 vga_screen[WIDTH * HEIGHT];
-extern PalEntry vga_pal[256];
+extern Palette vga_pal;
 
 void errorExit(const char *fmt, ...);
 
 // util
+struct Buffer;
+
+class Slice
+{
+    Buffer *buf;    // underlying storage
+    U8 *ptr;        // start of data
+    U32 length;     // length
+
+    Slice(Buffer *b, U32 len);
+
+public:
+    explicit Slice();
+    Slice(const Slice &x);
+    ~Slice();
+
+    static Slice make(U32 nbytes);
+
+    Slice &operator =(const Slice& x);
+
+    // actual slicing
+    const Slice operator ()(U32 start, U32 end=~0u) const;
+    Slice operator ()(U32 start, U32 end=~0u)   { return (Slice) ((const Slice&) *this)(start, end); }
+
+    U8 operator [](U32 i) const     { return ptr[i]; }
+    U8 &operator [](U32 i)          { return ptr[i]; }
+
+    operator void *() const         { return buf ? buf : NULL; }
+    U32 len() const                 { return length; }
+};
+
 struct PascalStr {
     explicit PascalStr(const U8 *pstr);
     ~PascalStr();
@@ -43,11 +75,10 @@ struct PascalStr {
 bool has_suffix(const char *str, const char *suffix); // case insensitive
 char *replace_ext(const char *filename, const char *newext);
 
-U8 *try_read_file(const char *filename, int *size=0);
-U8 *read_file(const char *filename, int *size=0);
-void read_file_to(void *buf, const char *filename);
+Slice try_read_file(const char *filename);
+Slice read_file(const char *filename);
 void write_file(const char *filename, const void *buf, int size);
-U8 *read_xored(const char *filename, int *size=0);
+Slice read_xored(const char *filename);
 
 int little_u16(const U8 *p);
 void decode_rle(U8 *dst, const U8 *src);
@@ -55,7 +86,7 @@ void decode_delta(U8 *dst, const U8 *src);
 void decode_delta_gfx(U8 *dst, int x, int y, const U8 *src, int scale, bool flipX);
 void decrypt(U8 *buffer, int nbytes, int *start);
 
-int find_gra_item(U8 *grafile, const char *name, U8 *type);
+int find_gra_item(Slice grafile, const char *name, U8 *type);
 
 void display_raw_pic(const char *filename); // .hot
 void display_pic(const char *filename); // .pic or .pi
@@ -99,7 +130,7 @@ private:
 
 // script
 
-void run_script(U8 *code, int len, bool init);
+void run_script(Slice code, bool init);
 
 // vars
 

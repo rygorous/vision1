@@ -198,10 +198,8 @@ static void init()
     // 07 = skip this column
     // 80 = blocked
 
-    int sz;
-    U8 *scr = read_xored("data/dextras.par", &sz);
-    run_script(scr, sz, true);
-    delete[] scr;
+    Slice s = read_xored("data/dextras.par");
+    run_script(s, true);
 }
 
 static void update()

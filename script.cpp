@@ -2,25 +2,10 @@
 #include <stdio.h>
 #include <ctype.h>
 
-struct Slice
+static std::string to_string(const Slice &sl)
 {
-    U8 *start; // inclusive
-    U8 *end; // exclusive
-
-    Slice() { }
-    Slice(U8 *s, U8 *e) : start(s), end(e) { }
-
-    U8 operator [](int i) const { return (unsigned) i < (unsigned) (end - start) ? start[i] : 0; }
-};
-
-static int len(const Slice &s)
-{
-    return s.end - s.start;
-}
-
-static std::string to_string(const Slice &s)
-{
-    return std::string(s.start, s.end);
+    Slice &s = (Slice &)sl;
+    return std::string(&s[0], &s[0] + s.len());
 }
 
 static Slice scan, line;
@@ -33,47 +18,48 @@ static bool islinespace(U8 ch)
 
 static void scan_line()
 {
-    U8 *p;
+    U32 pos = 0;
 
-    // find line_cur and line_end
-    line.start = scan.start;
-    for (p=scan.start; p < scan.end && !islinespace(*p); p++);
-    line.end = p;
+    // find end of current line
+    pos = 0;
+    while (pos < scan.len() && !islinespace(scan[pos]))
+        pos++;
+    line = scan(0, pos);
 
-    // forward scan_cur to start of next non-empty line
-    while (p < scan.end && islinespace(*p))
-        p++;
-    scan.start = p;
+    // forward scan to start of next non-empty line
+    while (pos < scan.len() && islinespace(scan[pos]))
+        pos++;
+    scan = scan(pos);
 }
 
 static void skip_whitespace()
 {
-    U8 *p = line.start;
-    while (p < line.end && *p == ' ')
-        p++;
-    line.start = p;
+    U32 pos = 0;
+    while (pos < line.len() && line[pos] == ' ')
+        pos++;
+    line = line(pos);
 }
 
 static Slice scan_word()
 {
-    U8 *start = line.start;
-    U8 *end = start;
-    while (end < line.end && *end != ' ')
-        end++;
+    U32 pos = 0;
+    while (pos < line.len() && line[pos] != ' ')
+        pos++;
 
-    line.start = end;
+    Slice s = line(0, pos);
+    line = line(pos);
     skip_whitespace();
-    return Slice(start, end);
+    return s;
 }
 
 // ---- debug
 
 static void print(Slice s)
 {
-    U8 *p = s.start;
-    while (p < s.end) {
-        putc(*p, stdout);
-        p++;
+    U32 pos = 0;
+    while (pos < s.len()) {
+        putc(s[pos], stdout);
+        pos++;
     }
 }
 
@@ -82,17 +68,17 @@ static void print(Slice s)
 static int int_value(const Slice &value)
 {
     // either a variable (which gets evaluated) or a literal
-    U8 *p = value.start;
+    U32 pos = 0;
     int i = 0, sign = 1;
 
     // try to parse as an int
-    if (p < value.end && *p == '-')
-        sign = -1, p++;
+    if (pos < value.len() && value[pos] == '-')
+        sign = -1, pos++;
 
-    while (p < value.end && isdigit(*p))
-        i = (i * 10) + (*p++ - '0');
+    while (pos < value.len() && isdigit(value[pos]))
+        i = (i * 10) + (value[pos++] - '0');
 
-    if (p == value.end) // succesfully parsed as int
+    if (pos == value.len()) // succesfully parsed as int
         return sign * i;
     else // assume it's a variable name
         return get_var_int(to_string(value));
@@ -106,11 +92,11 @@ static int int_value_word()
 static std::string str_value(const Slice &value)
 {
     if (value[0] == '\'') { // literal
-        if (value[len(value)-1] != '\'')
+        if (value[value.len()-1] != '\'')
             errorExit("bad string literal!");
 
-        return std::string(value.start+1, value.end-1);
-    } else if (value[len(value)-1] == '$') // string variable
+        return to_string(value(1, value.len()-1));
+    } else if (value[value.len()-1] == '$') // string variable
         return get_var_str(to_string(value));
     else { // int variable
         char buf[32];
@@ -121,16 +107,16 @@ static std::string str_value(const Slice &value)
 
 static std::string str_value_word()
 {
-    if (line.start < line.end && *line.start == '\'') {
+    if (line.len() && line[0] == '\'') {
         // find matching '
-        U8 *start = line.start;
-        U8 *end = start + 1;
-        while (end < line.end && *end != '\'')
-            end++;
-        if (end < line.end)
-            end++;
-        line.end = end;
-        return str_value(Slice(start, end));
+        U32 pos = 1;
+        while (pos < line.len() && line[pos] != '\'')
+            pos++;
+        if (pos < line.len())
+            pos++;
+        std::string s = str_value(line(0, pos));
+        line = line(pos);
+        return s;
     } else
         return str_value(scan_word());
 }
@@ -147,7 +133,7 @@ static void cmd_if()
 static void cmd_set()
 {
     Slice varname = scan_word();
-    if (varname[len(varname)-1] == '$')
+    if (varname[varname.len()-1] == '$')
         set_var_str(to_string(varname), str_value_word());
     else
         set_var_int(to_string(varname), int_value_word());
@@ -170,14 +156,14 @@ static struct CommandDesc
     "pic",      2,  cmd_pic,
 };
 
-void run_script(U8 *code, int len, bool init)
+void run_script(Slice code, bool init)
 {
     // init scan
-    scan = Slice(code, code + len);
+    scan = code;
     isInit = init;
 
     // scan script
-    while (scan.start < scan.end) {
+    while (scan.len()) {
         scan_line();
         skip_whitespace();
 

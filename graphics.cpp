@@ -18,12 +18,11 @@ void GfxBlock::load(const char *filename)
 {
     delete[] pixels;
 
-    U8 *bytes = read_file(filename);
-    w = little_u16(bytes + 0);
-    h = little_u16(bytes + 2);
+    Slice s = read_file(filename);
+    w = little_u16(&s[0]);
+    h = little_u16(&s[2]);
     pixels = new U8[w*h];
-    decode_rle(pixels, bytes + 4);
-    delete[] bytes;
+    decode_rle(pixels, &s[4]);
 }
 
 void GfxBlock::resize(int neww, int newh)
@@ -99,7 +98,7 @@ static void decode_mix(MixItem *items, int count, const char *vbFilename)
         flipx_screen();
 
     // library
-    U8 *libFile = read_file(PascalStr(items[1].pasNameStr));
+    Slice libFile = read_file(PascalStr(items[1].pasNameStr));
 
     // items
     for (int i=2; i < count; i++) {
@@ -116,10 +115,10 @@ static void decode_mix(MixItem *items, int count, const char *vbFilename)
         int x = items[i].para1l + (items[i].para1h << 8);
         int y = items[i].para2;
 
-        if (type == 5)
-            decode_delta_gfx(vga_screen, x, y, libFile + offs, items[i].para3, items[i].flipX != 0);
-        else if (type == 8) // RLE is fairly simple
-            decode_rle(vga_screen + y*WIDTH + x, libFile + offs);
+        if (type == 5) // delta
+            decode_delta_gfx(vga_screen, x, y, &libFile[offs], items[i].para3, items[i].flipX != 0);
+        else if (type == 8) // RLE
+            decode_rle(vga_screen + y*WIDTH + x, &libFile[offs]);
     }
 
     /*
@@ -139,32 +138,28 @@ static void decode_mix(MixItem *items, int count, const char *vbFilename)
 
         delete[] vbBytes;
     }*/
-
-    delete[] libFile;
 }
 
 void load_background(const char *filename)
 {
-    int size;
-    U8 *bytes = read_file(filename, &size);
+    Slice s = read_file(filename);
 
     if (has_suffix(filename, ".mix")) {
         char *vbFilename = replace_ext(filename, ".vb");
-        decode_mix((MixItem *)bytes, size / sizeof(MixItem), vbFilename);
+        decode_mix((MixItem *)&s[0], s.len() / sizeof(MixItem), vbFilename);
         free(vbFilename);
     } else {
         if (!has_suffix(filename, ".pal")) {
-            if (size > 63990)
-                memcpy(vga_screen, bytes + 768, WIDTH * HEIGHT);
-            else if (little_u16(bytes + 768) == 320 && little_u16(bytes + 770) == 200)
-                decode_rle(vga_screen, bytes + 772);
+            // gross, but this is the original logic from the game
+            if (s.len() > 63990)
+                memcpy(vga_screen, &s[768], WIDTH * HEIGHT);
+            else if (little_u16(&s[768]) == 320 && little_u16(&s[770]) == 200)
+                decode_rle(vga_screen, &s[772]);
             else
-                decode_delta(vga_screen, bytes + 768);
+                decode_delta(vga_screen, &s[768]);
         }
 
-        memcpy(vga_pal, bytes, 768);
+        memcpy(vga_pal, &s[0], 768);
         fix_palette();
     }
-
-    delete[] bytes;
 }
