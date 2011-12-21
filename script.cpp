@@ -121,6 +121,11 @@ static std::string str_value_word()
         return str_value(scan_word());
 }
 
+static std::string str_word()
+{
+    return to_string(scan_word());
+}
+
 static bool is_equal(const Slice &value, const char *str)
 {
     U32 pos = 0;
@@ -140,11 +145,20 @@ static void cmd_if()
 
 static void cmd_set()
 {
-    Slice varname = scan_word();
-    if (varname[varname.len()-1] == '$')
-        set_var_str(to_string(varname), str_value_word());
+    std::string varname = str_word();
+    if (varname.back() == '$')
+        set_var_str(varname, str_value_word());
     else
-        set_var_int(to_string(varname), int_value_word());
+        set_var_int(varname, int_value_word());
+}
+
+static void cmd_add()
+{
+    std::string varname = str_word();
+    if (varname.back() == '$')
+        set_var_str(varname, get_var_str(varname) + str_value_word());
+    else
+        set_var_int(varname, get_var_int(varname) + int_value_word());
 }
 
 static void cmd_pic()
@@ -197,11 +211,23 @@ static void cmd_exec()
 {
     Slice what = scan_word();
     if (is_equal(what, "dialog")) {
+        Slice charname = scan_word();
+        Slice dlgname = scan_word();
+        // TODO run dialog!
     } else {
         printf("don't know how to exec: ");
         print(what);
         printf("\n");
     }
+}
+
+static void cmd_random()
+{
+    std::string varname = str_word();
+    int range = int_value_word();
+    if (!range)
+        range = 1;
+    set_var_int(varname, rand() % range);
 }
 
 static struct CommandDesc
@@ -212,11 +238,13 @@ static struct CommandDesc
 } commands[] = {
     "if",           2,  cmd_if,
     "set",          2,  cmd_set,
+    "add",          2,  cmd_add,
     "pic",          2,  cmd_pic,
     "keyenable",    2,  cmd_keyenable,
     "song",         2,  cmd_song,
     "fade",         2,  cmd_fade,
     "exec",         2,  cmd_exec,
+    "random",       2,  cmd_random,
 };
 
 void run_script(Slice code, bool init)
