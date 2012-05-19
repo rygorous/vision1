@@ -172,22 +172,6 @@ static void init()
     //load_background("grafix/dock_l.pic");
     //load_background("grafix/dextras.mix");
 
-    //display_blk("grafix/zsatz.blk");
-    // figure out where "font metrics" are stored?
-
-    // uhr.blk is special (delta coded!)
-    //display_blk("grafix/wasser0.blk");
-
-    //display_pic("grafix/dock_l.pic");
-    //display_hot("grafix/dock_l.hot");
-
-    //display_pic("grafix/erlebhot.pic");
-    //display_pic("grafix/braun.pic");
-
-    //display_raw_pic("grafix/int_wolk.pic");
-    //display_gra("ani/intro.gra");
-    //display_gra("grafix/roomset.gra");
-
     decode_level("../game/data/levels.dat", 1);
     // look directions: (GANGD)
     // 0 = outside (+y)

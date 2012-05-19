@@ -89,13 +89,6 @@ void decrypt(U8 *buffer, int nbytes, int *start);
 
 int find_gra_item(Slice grafile, const char *name, U8 *type);
 
-void display_raw_pic(const char *filename); // .hot
-void display_pic(const char *filename); // .pic or .pi
-void display_hot(const char *filename); // .hot
-void display_face(const char *filename); // .frz
-bool display_gra(const char *filename, int index);
-void display_blk(const char *filename);
-
 void decode_level(const char *filename, int level);
 
 // graphics
