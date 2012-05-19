@@ -135,6 +135,7 @@ private:
 
 // script
 
+bool eval_bool_expr(const Slice &expr);
 void run_script(Slice code, bool init);
 
 // vars

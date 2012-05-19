@@ -37,13 +37,16 @@ static void skip_whitespace()
     U32 pos = 0;
     while (pos < line.len() && line[pos] == ' ')
         pos++;
+    // an end-of-line comment starts with ; and counts as white space
+    if (pos < line.len() && line[pos] == ';')
+        pos = line.len();
     line = line(pos);
 }
 
 static Slice scan_word()
 {
     U32 pos = 0;
-    while (pos < line.len() && line[pos] != ' ')
+    while (pos < line.len() && line[pos] != ' ' && line[pos] != ';')
         pos++;
 
     Slice s = line(0, pos);
@@ -126,7 +129,7 @@ static std::string str_word()
     return to_string(scan_word());
 }
 
-static bool is_equal(const Slice &value, const char *str)
+static bool has_prefix(const Slice &value, const char *str)
 {
     U32 pos = 0;
     while (pos < value.len() && str[pos] && tolower(value[pos]) == str[pos])
@@ -134,13 +137,188 @@ static bool is_equal(const Slice &value, const char *str)
     return pos == value.len();
 }
 
+static bool is_equal(const Slice &value, const char *str)
+{
+    return has_prefix(value, str) && str[value.len()] == 0;
+}
+
+// ---- boolean expressions
+
+static bool is_bool_expr_op(char ch)
+{
+    return ch == '^' || ch == '<' || ch == '=' || ch == '>' || ch == '#';
+}
+
+static Slice scan_bool_tok()
+{
+    U32 pos = 0;
+
+    if (line.len() && line[0] == '\'') { // string
+        pos++;
+        while (pos < line.len() && line[pos] != '\'')
+            pos++;
+
+        if (pos == line.len())
+            errorExit("string continued past end of line");
+    } else {
+        while (pos < line.len() && line[pos] != ' ' && line[pos] != ';' && !is_bool_expr_op(line[pos]))
+            pos++;
+    }
+
+    // handle single-character tokens
+    if (pos == 0 && line.len() && is_bool_expr_op(line[0]))
+        pos = 1;
+
+    Slice s = line(0, pos);
+    line = line(pos);
+    skip_whitespace();
+    return s;
+}
+
+static std::string bool_str_value(const Slice &value)
+{
+    if (value[0] == '\'') { // quoted literal
+       if (value[value.len()-1] != '\'')
+            errorExit("bad string literal!");
+
+        return to_string(value(1, value.len()-1));
+    } else if (value[value.len()-1] == '$') // string variable
+        return get_var_str(to_string(value));
+    else
+        return to_string(value);
+}
+
+static bool eval_bool_expr1(Slice &tok)
+{
+    if (!tok.len())
+        return true;
+
+    if (tok[0] == '\'' || tok[tok.len() - 1] == '$') { // string compare
+        std::string lhs = bool_str_value(tok);
+        Slice op = scan_bool_tok();
+        std::string rhs = bool_str_value(scan_bool_tok());
+        tok = scan_bool_tok();
+
+        if (is_equal(op, "="))
+            return lhs == rhs;
+        else if (is_equal(op, "#"))
+            return lhs != rhs;
+        else
+            errorExit("unknown relational op (str): %s", to_string(op).c_str());
+    } else { // assume integers
+        int lhs = int_value(tok);
+        Slice op = scan_bool_tok();
+        int rhs = int_value(scan_bool_tok());
+        tok = scan_bool_tok();
+
+        if (is_equal(op, "="))
+            return lhs == rhs;
+        else if (is_equal(op, "#"))
+            return lhs != rhs;
+        else if (is_equal(op, "<"))
+            return lhs < rhs;
+        else if (is_equal(op, ">"))
+            return lhs > rhs;
+        else
+            errorExit("unknown relational op (int): %s", to_string(op).c_str());
+    }
+
+    return false;
+}
+
+static bool eval_bool_expr0(Slice &tok)
+{
+    enum {
+        LSET,
+        LOR,
+        LAND,
+        LXOR
+    } logic = LSET;
+    bool result = false;
+
+    for (;;) {
+        bool partial;
+        bool complement = false;
+
+        if (is_equal(tok, "not")) {
+            complement = true;
+            tok = scan_bool_tok();
+        }
+
+        if (logic != LSET && tok.len() && tok[0] >= '0' && tok[0] <= '9') {
+            // special case: implicit PERSO=
+            partial = get_var_int("PERSO") == int_value(tok);
+            tok = scan_bool_tok();
+        } else
+            partial = eval_bool_expr1(tok);
+
+        switch (logic) {
+        case LSET:  result = partial; break;
+        case LOR:   result |= partial; break;
+        case LAND:  result &= partial; break;
+        case LXOR:  result ^= partial; break;
+        }
+
+        if (is_equal(tok, "or")) {
+            logic = LOR;
+            tok = scan_bool_tok();
+        } else if (is_equal(tok, "and")) {
+            logic = LAND;
+            tok = scan_bool_tok();
+        } else if (is_equal(tok, "xor")) {
+            logic = LXOR;
+            tok = scan_bool_tok();
+        } else if (!tok.len() || is_equal(tok, "^"))
+            break;
+        else
+            errorExit("unknown boolean op: %s", to_string(tok).c_str());
+    }
+
+    return result;
+}
+
+bool eval_bool_expr(const Slice &expr)
+{
+    Slice tok;
+
+    line = expr;
+    skip_whitespace();
+    tok = scan_bool_tok(); // 1 token lookahead
+
+    // handle caret (shortcut eval or)
+    while (tok.len()) {
+        if (eval_bool_expr0(tok))
+            return true;
+
+        if (!is_equal(tok, "^"))
+            break;
+        else
+            tok = scan_bool_tok();
+    }
+
+    return false;
+}
+
+static bool bool_expr()
+{
+    return eval_bool_expr(line);
+}
+
 // ---- command functions
 
 static void cmd_if()
 {
-    printf("if: ");
-    print(line);
-    printf("\n");
+    bool cond = false;
+    Slice l = line;
+
+    // special cases first
+    // TODO there's more of them!
+    if (has_prefix(line, "init"))
+        cond = isInit;
+    else // assume it's an expression
+        cond = bool_expr();
+
+    // TODO do something with cond!
 }
 
 static void cmd_set()
@@ -213,6 +391,8 @@ static void cmd_exec()
     if (is_equal(what, "dialog")) {
         Slice charname = scan_word();
         Slice dlgname = scan_word();
+
+        printf("!!! dialog %s %s\n", to_string(charname).c_str(), to_string(dlgname).c_str());
         // TODO run dialog!
     } else {
         printf("don't know how to exec: ");
@@ -276,3 +456,4 @@ void run_script(Slice code, bool init)
         }
     }
 }
+

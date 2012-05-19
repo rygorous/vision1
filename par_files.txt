@@ -1,3 +1,27 @@
+RE results
+----------
+- if/else impl: just a counter for nesting level of wrong conditions.
+  counter==0: run code normally.
+  counter!=0: don't run code, but check for:
+  - if: counter++
+  - end: counter--
+  - else: if (counter == 1) counter = 0;
+
+RE TODO:
+--------
+
+- how are dialog variables (tom* or was it elo*) set from dialogs?
+- "big" anim decoder: talking faces etc.
+- update command list!
+
+NEED TO WRITE
+-------------
+
+- boolean expression evaluator
+- if/else/end logic
+- label support
+- dialog engine!
+
 known commands:
 
 color <index> <r> <g> <b>
