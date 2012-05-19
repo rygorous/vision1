@@ -1,4 +1,5 @@
 #include "common.h"
+#include <assert.h>
 #include <stdio.h>
 #include <ctype.h>
 
@@ -10,6 +11,7 @@ static std::string to_string(const Slice &sl)
 
 static Slice scan, line;
 static bool isInit;
+static int flow_counter;
 
 static bool islinespace(U8 ch)
 {
@@ -308,17 +310,35 @@ static bool bool_expr()
 
 static void cmd_if()
 {
-    bool cond = false;
-    Slice l = line;
+    if (flow_counter == 0) { // normal execution
+        bool cond = false;
+        Slice l = line;
 
-    // special cases first
-    // TODO there's more of them!
-    if (has_prefix(line, "init"))
-        cond = isInit;
-    else // assume it's an expression
-        cond = bool_expr();
+        // special cases first
+        // TODO there's more of them!
+        if (has_prefix(line, "init"))
+            cond = isInit;
+        else // assume it's an expression
+            cond = bool_expr();
 
-    // TODO do something with cond!
+        flow_counter = cond ? 0 : 1;
+        //printf("if: expr=\"%s\" value=%d\n", to_string(l).c_str(), cond);
+    } else { // already not executing, just increment nesting depth
+        //printf("if: expr=\"%s\" flow=%d\n", to_string(line).c_str(), flow_counter);
+        flow_counter++;
+    }
+}
+
+static void cmd_else()
+{
+    if (flow_counter == 1)
+        flow_counter = 0;
+}
+
+static void cmd_end()
+{
+    if (flow_counter != 0)
+        flow_counter--;
 }
 
 static void cmd_set()
@@ -337,6 +357,13 @@ static void cmd_add()
         set_var_str(varname, get_var_str(varname) + str_value_word());
     else
         set_var_int(varname, get_var_int(varname) + int_value_word());
+}
+
+static void cmd_off()
+{
+    // turn off music?
+    //assert(0);
+    printf("off?\n");
 }
 
 static void cmd_pic()
@@ -410,21 +437,68 @@ static void cmd_random()
     set_var_int(varname, rand() % range);
 }
 
+static void cmd_wait()
+{
+    // TODO: what do we wait for?
+    printf("wait\n");
+}
+
+static void cmd_jump()
+{
+    assert(0);
+}
+
+static void cmd_definelabel()
+{
+    // no semantics
+}
+
+static void cmd_stop()
+{
+    assert(0);
+}
+
+static void cmd_time()
+{
+    assert(0);
+}
+
+static void cmd_load()
+{
+    assert(0);
+}
+
+static void cmd_big()
+{
+    assert(0);
+}
+
 static struct CommandDesc
 {
     char *name;
     int prefixlen;
+    bool isflow;
     void (*exec)();
 } commands[] = {
-    "add",          2,  cmd_add,
-    "exec",         2,  cmd_exec,
-    "fade",         2,  cmd_fade,
-    "if",           2,  cmd_if,
-    "keyenable",    2,  cmd_keyenable,
-    "pic",          2,  cmd_pic,
-    "set",          2,  cmd_set,
-    "song",         2,  cmd_song,
-    "random",       2,  cmd_random,
+    ":",            1,  false,  cmd_definelabel,
+    "add",          2,  false,  cmd_add,
+    "big",          2,  false,  cmd_big,
+    "else",         2,  true,   cmd_else,
+    "end",          2,  true,   cmd_end,
+    "exec",         2,  false,  cmd_exec,
+    "fade",         2,  false,  cmd_fade,
+    "if",           2,  true,   cmd_if,
+    "jump",         1,  false,  cmd_jump,
+    "keyenable",    2,  false,  cmd_keyenable,
+    "load",         2,  false,  cmd_load,
+    "off",          2,  false,  cmd_off,
+    "pic",          2,  false,  cmd_pic,
+    "set",          2,  false,  cmd_set,
+    "song",         2,  false,  cmd_song,
+    "stop",         2,  false,  cmd_stop,
+    "time",         2,  false,  cmd_time,
+    "random",       2,  false,  cmd_random,
+    "wait",         2,  false,  cmd_wait,
 };
 
 void run_script(Slice code, bool init)
@@ -432,9 +506,12 @@ void run_script(Slice code, bool init)
     // init scan
     scan = code;
     isInit = init;
+    flow_counter = 0;
 
     // scan script
     while (scan.len()) {
+        assert(flow_counter >= 0);
+
         scan_line();
         skip_whitespace();
 
@@ -445,14 +522,16 @@ void run_script(Slice code, bool init)
             while (j < commands[i].prefixlen && tolower(command[j]) == commands[i].name[j])
                 j++;
             if (j == commands[i].prefixlen) {
-                commands[i].exec();
+                if (flow_counter == 0 || commands[i].isflow)
+                    commands[i].exec();
                 break;
             }
         }
 
         if (i == ARRAY_COUNT(commands)) {
             print(command);
-            printf("?\n");
+            printf("? (line=\"%s\")\n", to_string(line).c_str());
+            assert(0);
         }
     }
 }
