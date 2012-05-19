@@ -416,14 +416,14 @@ static struct CommandDesc
     int prefixlen;
     void (*exec)();
 } commands[] = {
-    "if",           2,  cmd_if,
-    "set",          2,  cmd_set,
     "add",          2,  cmd_add,
-    "pic",          2,  cmd_pic,
-    "keyenable",    2,  cmd_keyenable,
-    "song",         2,  cmd_song,
-    "fade",         2,  cmd_fade,
     "exec",         2,  cmd_exec,
+    "fade",         2,  cmd_fade,
+    "if",           2,  cmd_if,
+    "keyenable",    2,  cmd_keyenable,
+    "pic",          2,  cmd_pic,
+    "set",          2,  cmd_set,
+    "song",         2,  cmd_song,
     "random",       2,  cmd_random,
 };
 
