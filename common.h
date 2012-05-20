@@ -36,8 +36,7 @@ void frame();
 // util
 struct Buffer;
 
-class Slice
-{
+class Slice {
     Buffer *buf;    // underlying storage
     U8 *ptr;        // start of data
     U32 length;     // length
@@ -92,8 +91,7 @@ int find_gra_item(Slice grafile, const char *name, U8 *type);
 void decode_level(const char *filename, int level);
 
 // graphics
-struct GfxBlock
-{
+struct GfxBlock {
     GfxBlock();
     ~GfxBlock();
 
@@ -102,6 +100,29 @@ struct GfxBlock
 
     U8 *pixels;
     int w, h;
+};
+
+class Animation { // .ani / .big files
+    U8 *data;
+    int frame_size;
+
+    int posx, posy;
+    int w, h;
+    int num_frames, wait_frames;
+    int cur_frame, cur_tick;
+
+    const U8 *get_frame(int frame) const;
+
+public:
+    Animation();
+    ~Animation();
+
+    void clear();
+    void load(const char *filename);
+
+    void tick();
+    void render();
+    bool is_done() const;
 };
 
 extern Palette palette_a, palette_b;

@@ -470,7 +470,17 @@ static void cmd_load()
 
 static void cmd_big()
 {
-    assert(0);
+    std::string filename = str_word() + ".ani";
+    if (filename[0] == '!') // semantics?
+        filename = filename.substr(1);
+    
+    Animation anim;
+    anim.load(filename.c_str());
+    while (!anim.is_done()) {
+        anim.render();
+        anim.tick();
+        frame();
+    }
 }
 
 static struct CommandDesc

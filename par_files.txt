@@ -22,7 +22,33 @@ NEED TO WRITE
 - label support
 - dialog engine!
 
-known commands:
+ANI files
+---------
+
+loaded in memory to offset 0xb
+in memory:
+
+  0x00  word	num_pixels (width*height)
+  0x02	word	??? (set to 0x16 on load)
+  0x04	word	??? (some offset thing?)
+  0x06	word	??? (set to 0 on load)
+  0x08	???
+  0x09	???
+  0x0a	???
+
+  0x0b	byte	???
+  0x0c	???
+  0x0d	???
+  0x0e	???
+  0x0f	word	x_pos
+  0x11	byte	y_pos
+  0x12	byte	width
+  0x13	byte	height
+  0x14	byte	num_frames
+  0x15	byte	fps in file, num frames to wait after load
+
+known commands
+--------------
 
 color <index> <r> <g> <b>
 	

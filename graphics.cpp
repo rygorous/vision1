@@ -7,7 +7,7 @@ Palette palette_a, palette_b;
 
 GfxBlock::GfxBlock()
 {
-    pixels = 0;
+    pixels = nullptr;
     w = h = 0;
 }
 
@@ -41,6 +41,91 @@ void GfxBlock::resize(int neww, int newh)
     pixels = newpix;
     w = neww;
     h = newh;
+}
+
+const U8 *Animation::get_frame(int frame) const
+{
+    if (!data || frame < 0 || frame >= num_frames)
+        return nullptr;
+
+    return data + frame * frame_size;
+}
+
+Animation::Animation()
+    : data(nullptr)
+{
+    clear();
+}
+
+Animation::~Animation()
+{
+    clear();
+}
+
+void Animation::clear()
+{
+    delete[] data;
+    data = nullptr;
+    frame_size = 0;
+    posx = posy = w = h = 0;
+    num_frames = wait_frames = 0;
+    cur_frame = cur_tick = 0;
+}
+
+void Animation::load(const char *filename)
+{
+    clear();
+
+    // read file and header stuff
+    Slice s = read_file(filename);
+    if (s.len() < 11)
+        return;
+
+    posx = little_u16(&s[4]);
+    posy = s[6];
+    w = s[7];
+    h = s[8];
+    num_frames = s[9];
+    int fps = s[10];
+
+    wait_frames = 70 / fps;
+    frame_size = w * h;
+    data = new U8[num_frames * frame_size];
+
+    // read contents (frames are stored in reverse order!)
+    int pos = 11;
+    for (int frame = num_frames - 1; frame >= 0; frame--) {
+        U8 *dst = (U8 *)get_frame(frame);
+        if (frame != num_frames - 1)
+            memcpy(dst, get_frame(frame + 1), frame_size);
+
+        int src_size = little_u16(&s[pos]);
+        decode_rle(dst, &s[pos + 2]);
+        pos += src_size;
+    }
+}
+
+void Animation::tick()
+{
+    if (++cur_tick >= wait_frames) {
+        cur_tick = 0;
+        cur_frame++;
+    }
+}
+
+void Animation::render()
+{
+    const U8 *frame = get_frame(cur_frame);
+    if (!frame)
+        return;
+
+    for (int y=0; y < h; y++)
+        memcpy(&vga_screen[(y + posy) * WIDTH + posx], &frame[y * w], w);
+}
+
+bool Animation::is_done() const
+{
+    return cur_frame >= num_frames;
 }
 
 void fix_palette(Palette pal)
