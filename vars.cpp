@@ -19,11 +19,27 @@ void init_vars()
     // init to default values!
     set_var_str("vorname$", "");
     set_var_str("name$", "");
+    
+    // bunch of dummy stuff to test aufzug.par
+    set_var_int("stufe", 0);
+    set_var_int("ok", 0);
+    set_var_int("tom3", 0);
+    set_var_int("money", 500);
+    set_var_int("kalorie", 500);
+    set_var_int("maxplo", 0);
+    set_var_int("sympaok", 0);
+    set_var_int("sympa", 0);
+    set_var_int("kaution", 100);
+    set_var_int("robot", 0);
+    set_var_int("st", 1);
+    set_var_int("morgen", 0);
+    set_var_int("puzzle", 0);
+    set_var_str("key$", "");
 }
 
 int get_var_int(const std::string &name)
 {
-    auto iter = int_vars.find(name);
+    auto iter = int_vars.find(canonical(name));
     if (iter == int_vars.end())
         errorExit("variable not found: %s", name.c_str());
     return iter->second;

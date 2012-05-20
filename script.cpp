@@ -85,7 +85,7 @@ static void scan_line()
 static void skip_whitespace()
 {
     U32 pos = 0;
-    while (pos < line.len() && line[pos] == ' ')
+    while (pos < line.len() && (line[pos] == ' ' || line[pos] == '\t'))
         pos++;
     // an end-of-line comment starts with ; and counts as white space
     if (pos < line.len() && line[pos] == ';')
@@ -411,7 +411,7 @@ static void cmd_off()
 {
     // turn off music?
     //assert(0);
-    printf("off?\n");
+    //printf("off?\n");
 }
 
 static void cmd_pic()
@@ -515,6 +515,12 @@ static void cmd_load()
     assert(0);
 }
 
+static void cmd_black()
+{
+    memset(vga_screen, 0, sizeof(vga_screen));
+    memset(&vga_pal, 0, sizeof(vga_pal));
+}
+
 static void cmd_big()
 {
     bool reverse = false;
@@ -539,6 +545,7 @@ static struct CommandDesc
     ":",            1,  false,  cmd_definelabel,
     "add",          2,  false,  cmd_add,
     "big",          2,  false,  cmd_big,
+    "black",        2,  false,  cmd_black,
     "else",         2,  true,   cmd_else,
     "end",          2,  true,   cmd_end,
     "exec",         2,  false,  cmd_exec,
@@ -587,7 +594,7 @@ void run_script(Slice code, bool init)
         if (i == ARRAY_COUNT(commands)) {
             print(command);
             printf("? (line=\"%s\")\n", to_string(line).c_str());
-            assert(0);
+            //assert(0);
         }
     }
 }
