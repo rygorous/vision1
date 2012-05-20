@@ -210,6 +210,8 @@ static Slice scan_bool_tok()
 
         if (pos == line.len())
             errorExit("string continued past end of line");
+        else
+            pos++; // quote is part of the string!
     } else {
         while (pos < line.len() && line[pos] != ' ' && line[pos] != ';' && !is_bool_expr_op(line[pos]))
             pos++;
@@ -512,7 +514,7 @@ static void cmd_time()
 
 static void cmd_load()
 {
-    assert(0);
+    //assert(0);
 }
 
 static void cmd_black()
@@ -535,6 +537,34 @@ static void cmd_big()
     add_anim(anim);
 }
 
+static void cmd_megaanim()
+{
+    std::string grafilename = str_word();
+    std::string prefix = str_word();
+    int frame_start = int_value_word();
+    int frame_end = int_value_word();
+    int posx = int_value_word();
+    int posy = int_value_word();
+    int wait_frames = int_value_word();
+    int scale = int_value_word();
+    int flip = int_value_word();
+
+    Slice grafile = read_file(grafilename.c_str());
+
+    for (int frm = frame_start; frm <= frame_end; frm++) {
+        U8 type;
+        char name[32];
+        sprintf(name, "%s%d", prefix.c_str(), frm);
+        int offs = find_gra_item(grafile, name, &type);
+        if (offs < 0 || type != 5)
+            errorExit("bad anim! (prefix=%s frame=%d offs=%d type=%d)", prefix.c_str(), frame, offs, type);
+
+        decode_delta_gfx(vga_screen, posx, posy, &grafile[offs], scale, flip != 0);
+        for (int i=0; i < wait_frames; i++)
+            frame();
+    }
+}
+
 static struct CommandDesc
 {
     char *name;
@@ -554,6 +584,7 @@ static struct CommandDesc
     "jump",         1,  false,  cmd_jump,
     "keyenable",    2,  false,  cmd_keyenable,
     "load",         2,  false,  cmd_load,
+    "megaani",      2,  false,  cmd_megaanim,
     "off",          2,  false,  cmd_off,
     "pic",          2,  false,  cmd_pic,
     "set",          2,  false,  cmd_set,

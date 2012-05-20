@@ -34,6 +34,7 @@ void init_vars()
     set_var_int("st", 1);
     set_var_int("morgen", 0);
     set_var_int("puzzle", 0);
+    set_var_int("hot", 999);
     set_var_str("key$", "");
 }
 
