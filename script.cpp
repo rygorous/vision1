@@ -2,6 +2,54 @@
 #include <assert.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <vector>
+
+// ---- game tick
+
+static std::vector<Animation*> animations;
+
+static void add_anim(Animation *anim)
+{
+    animations.push_back(anim);
+}
+
+static void render_anim()
+{
+    for (auto it = animations.begin(); it != animations.end(); ++it)
+        (*it)->render();
+}
+
+static void tick_anim()
+{
+    for (size_t i = 0; i < animations.size(); ) {
+        Animation *anim = animations[i];
+        anim->tick();
+        if (anim->is_done()) {
+            delete anim;
+            animations[i] = animations.back();
+            animations.pop_back();
+        } else
+            i++;
+    }
+}
+
+static void game_frame()
+{
+    render_anim();
+    tick_anim();
+
+    // time handling etc. should also go here
+
+    frame();
+}
+
+static void wait_anim_done()
+{
+    while (animations.size())
+        game_frame();
+}
+
+// ---- script low-level scanning
 
 static std::string to_string(const Slice &sl)
 {
@@ -439,8 +487,7 @@ static void cmd_random()
 
 static void cmd_wait()
 {
-    // TODO: what do we wait for?
-    printf("wait\n");
+    wait_anim_done();
 }
 
 static void cmd_jump()
@@ -477,13 +524,9 @@ static void cmd_big()
         filename = filename.substr(1);
     }
     
-    Animation anim;
-    anim.load(filename.c_str(), reverse);
-    while (!anim.is_done()) {
-        anim.render();
-        anim.tick();
-        frame();
-    }
+    Animation *anim = new Animation;
+    anim->load(filename.c_str(), reverse);
+    add_anim(anim);
 }
 
 static struct CommandDesc
