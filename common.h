@@ -103,7 +103,16 @@ struct GfxBlock {
     int w, h;
 };
 
-class Animation { // .ani / .big files
+class Animation { // abstract interface
+public:
+    virtual ~Animation() = 0;
+
+    virtual void tick() = 0;
+    virtual void render() = 0;
+    virtual bool is_done() const = 0;
+};
+
+class BigAnimation : public Animation { // .ani / .big files
     U8 *data;
     int frame_size;
 
@@ -116,12 +125,12 @@ class Animation { // .ani / .big files
     const U8 *get_frame(int frame) const;
 
 public:
-    Animation(const char *filename, bool reverse_playback);
-    ~Animation();
+    BigAnimation(const char *filename, bool reverse_playback);
+    virtual ~BigAnimation();
 
-    void tick();
-    void render();
-    bool is_done() const;
+    virtual void tick();
+    virtual void render();
+    virtual bool is_done() const;
 };
 
 extern Palette palette_a, palette_b;

@@ -44,7 +44,44 @@ void GfxBlock::resize(int neww, int newh)
     h = newh;
 }
 
-const U8 *Animation::get_frame(int frame) const
+void fix_palette(Palette pal)
+{
+    static const PalEntry defaultHighPal[8] = {
+        {  0,  0,  0 },
+        { 20, 20, 20 },
+        { 40, 40, 40 },
+        { 60, 60, 60 },
+        {  0,  0,  0 },
+        { 28, 24,  4 },
+        { 42, 38,  6 },
+        { 63, 56,  9 },
+    };
+
+    pal[0].r = pal[0].g = pal[0].b = 0;
+    memcpy(&pal[0xf8], defaultHighPal, 8 * sizeof(PalEntry));
+}
+
+void set_palette()
+{
+    memcpy(vga_pal, palette_a, sizeof(Palette));
+}
+
+void set_palb_fade(int intensity)
+{
+    for (int i=0; i < 256; i++) {
+        vga_pal[i].r = (palette_b[i].r * intensity) >> 8;
+        vga_pal[i].g = (palette_b[i].g * intensity) >> 8;
+        vga_pal[i].b = (palette_b[i].b * intensity) >> 8;
+    }
+}
+
+// ---- animation
+
+Animation::~Animation()
+{
+}
+
+const U8 *BigAnimation::get_frame(int frame) const
 {
     if (!data || frame < 0 || frame > last_frame)
         return nullptr;
@@ -52,7 +89,7 @@ const U8 *Animation::get_frame(int frame) const
     return data + frame * frame_size;
 }
 
-Animation::Animation(const char *filename, bool reverse_playback)
+BigAnimation::BigAnimation(const char *filename, bool reverse_playback)
     : data(nullptr), frame_size(0), posx(0), posy(0), w(0), h(0),
     last_frame(-1), wait_frames(1), cur_frame(0), cur_tick(0),
     reversed(reverse_playback)
@@ -89,12 +126,12 @@ Animation::Animation(const char *filename, bool reverse_playback)
     }
 }
 
-Animation::~Animation()
+BigAnimation::~BigAnimation()
 {
     delete[] data;
 }
 
-void Animation::tick()
+void BigAnimation::tick()
 {
     if (++cur_tick >= wait_frames) {
         cur_tick = 0;
@@ -102,7 +139,7 @@ void Animation::tick()
     }
 }
 
-void Animation::render()
+void BigAnimation::render()
 {
     const U8 *frame = get_frame(reversed ? last_frame - cur_frame : cur_frame);
     if (!frame)
@@ -112,40 +149,9 @@ void Animation::render()
         memcpy(&vga_screen[(y + posy) * WIDTH + posx], &frame[y * w], w);
 }
 
-bool Animation::is_done() const
+bool BigAnimation::is_done() const
 {
     return cur_frame > last_frame;
-}
-
-void fix_palette(Palette pal)
-{
-    static const PalEntry defaultHighPal[8] = {
-        {  0,  0,  0 },
-        { 20, 20, 20 },
-        { 40, 40, 40 },
-        { 60, 60, 60 },
-        {  0,  0,  0 },
-        { 28, 24,  4 },
-        { 42, 38,  6 },
-        { 63, 56,  9 },
-    };
-
-    pal[0].r = pal[0].g = pal[0].b = 0;
-    memcpy(&pal[0xf8], defaultHighPal, 8 * sizeof(PalEntry));
-}
-
-void set_palette()
-{
-    memcpy(vga_pal, palette_a, sizeof(Palette));
-}
-
-void set_palb_fade(int intensity)
-{
-    for (int i=0; i < 256; i++) {
-        vga_pal[i].r = (palette_b[i].r * intensity) >> 8;
-        vga_pal[i].g = (palette_b[i].g * intensity) >> 8;
-        vga_pal[i].b = (palette_b[i].b * intensity) >> 8;
-    }
 }
 
 // ---- .mix files
