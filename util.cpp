@@ -209,6 +209,26 @@ void decode_rle(U8 *dst, const U8 *src)
     }
 }
 
+void decode_transparent_rle(U8 *dst, const U8 *src)
+{
+    for (;;) {
+        U8 cmd = *src++;
+        if (cmd == 0xff) { // run
+            U8 len = *src++;
+            if (!len)
+                break;
+
+            U8 val = *src++;
+            if (val)
+                memset(dst, val, len);
+            dst += len;
+        } else if (cmd)
+            *dst++ = cmd;
+        else
+            dst++;
+    }
+}
+
 void decode_delta(U8 *dst, const U8 *p)
 {
     for (;;) {

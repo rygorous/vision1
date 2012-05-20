@@ -82,6 +82,7 @@ Slice read_xored(const char *filename);
 
 int little_u16(const U8 *p);
 void decode_rle(U8 *dst, const U8 *src);
+void decode_transparent_rle(U8 *dst, const U8 *src);
 void decode_delta(U8 *dst, const U8 *src);
 void decode_delta_gfx(U8 *dst, int x, int y, const U8 *src, int scale, bool flipX);
 void decrypt(U8 *buffer, int nbytes, int *start);
@@ -128,7 +129,6 @@ public:
 
 extern Palette palette_a, palette_b;
 
-void fix_palette();
 void set_palette();
 void set_palb_fade(int intensity);
 void load_background(const char *filename);

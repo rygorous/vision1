@@ -101,7 +101,7 @@ void Animation::load(const char *filename, bool reverse_playback)
             memcpy(dst, get_frame(frame + 1), frame_size);
 
         int src_size = little_u16(&s[pos]);
-        decode_rle(dst, &s[pos + 2]);
+        decode_transparent_rle(dst, &s[pos + 2]);
         pos += src_size;
     }
 }
