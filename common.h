@@ -110,6 +110,7 @@ class Animation { // .ani / .big files
     int w, h;
     int num_frames, wait_frames;
     int cur_frame, cur_tick;
+    bool reversed;
 
     const U8 *get_frame(int frame) const;
 
@@ -118,7 +119,7 @@ public:
     ~Animation();
 
     void clear();
-    void load(const char *filename);
+    void load(const char *filename, bool reverse_playback);
 
     void tick();
     void render();

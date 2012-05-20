@@ -470,12 +470,15 @@ static void cmd_load()
 
 static void cmd_big()
 {
+    bool reverse = false;
     std::string filename = str_word() + ".ani";
-    if (filename[0] == '!') // semantics?
+    if (filename[0] == '!') {
+        reverse = true;
         filename = filename.substr(1);
+    }
     
     Animation anim;
-    anim.load(filename.c_str());
+    anim.load(filename.c_str(), reverse);
     while (!anim.is_done()) {
         anim.render();
         anim.tick();

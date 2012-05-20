@@ -72,7 +72,7 @@ void Animation::clear()
     cur_frame = cur_tick = 0;
 }
 
-void Animation::load(const char *filename)
+void Animation::load(const char *filename, bool reverse_playback)
 {
     clear();
 
@@ -87,6 +87,7 @@ void Animation::load(const char *filename)
     h = s[8];
     num_frames = s[9];
     int fps = s[10];
+    reversed = reverse_playback;
 
     wait_frames = 70 / fps;
     frame_size = w * h;
@@ -115,7 +116,7 @@ void Animation::tick()
 
 void Animation::render()
 {
-    const U8 *frame = get_frame(cur_frame);
+    const U8 *frame = get_frame(reversed ? num_frames - 1 - cur_frame : cur_frame);
     if (!frame)
         return;
 
