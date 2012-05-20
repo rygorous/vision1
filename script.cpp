@@ -565,6 +565,20 @@ static void cmd_megaanim()
     }
 }
 
+static void cmd_color()
+{
+    int index = int_value_word();
+    int r = int_value_word();
+    int g = int_value_word();
+    int b = int_value_word();
+
+    if (index >= 0 && index < 256) {
+        vga_pal[index].r = r;
+        vga_pal[index].g = g;
+        vga_pal[index].b = b;
+    }
+}
+
 static struct CommandDesc
 {
     char *name;
@@ -576,6 +590,7 @@ static struct CommandDesc
     "add",          2,  false,  cmd_add,
     "big",          2,  false,  cmd_big,
     "black",        2,  false,  cmd_black,
+    "color",        2,  false,  cmd_color,
     "else",         2,  true,   cmd_else,
     "end",          2,  true,   cmd_end,
     "exec",         2,  false,  cmd_exec,
