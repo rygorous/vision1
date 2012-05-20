@@ -532,9 +532,7 @@ static void cmd_big()
         filename = filename.substr(1);
     }
     
-    Animation *anim = new Animation;
-    anim->load(filename.c_str(), reverse);
-    add_anim(anim);
+    add_anim(new Animation(filename.c_str(), reverse));
 }
 
 static void cmd_megaanim()

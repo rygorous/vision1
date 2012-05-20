@@ -186,7 +186,7 @@ static void init()
     //Slice s = read_xored("data/init.par");
     //run_script(s, true);
 
-    Slice s = read_xored("data/vision1.par");
+    Slice s = read_xored("data/aufzug.par");
     run_script(s, true);
 }
 

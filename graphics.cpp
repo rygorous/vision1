@@ -1,4 +1,5 @@
 #include "common.h"
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,65 +46,52 @@ void GfxBlock::resize(int neww, int newh)
 
 const U8 *Animation::get_frame(int frame) const
 {
-    if (!data || frame < 0 || frame >= num_frames)
+    if (!data || frame < 0 || frame > last_frame)
         return nullptr;
 
     return data + frame * frame_size;
 }
 
-Animation::Animation()
-    : data(nullptr)
+Animation::Animation(const char *filename, bool reverse_playback)
+    : data(nullptr), frame_size(0), posx(0), posy(0), w(0), h(0),
+    last_frame(-1), wait_frames(1), cur_frame(0), cur_tick(0),
+    reversed(reverse_playback)
 {
-    clear();
-}
-
-Animation::~Animation()
-{
-    clear();
-}
-
-void Animation::clear()
-{
-    delete[] data;
-    data = nullptr;
-    frame_size = 0;
-    posx = posy = w = h = 0;
-    num_frames = wait_frames = 0;
-    cur_frame = cur_tick = 0;
-}
-
-void Animation::load(const char *filename, bool reverse_playback)
-{
-    clear();
-
     // read file and header stuff
     Slice s = read_file(filename);
     if (s.len() < 11)
         return;
 
+    // bytes 0-3???
     posx = little_u16(&s[4]);
     posy = s[6];
     w = s[7];
     h = s[8];
-    num_frames = s[9];
+    last_frame = s[9];
     int fps = s[10];
     reversed = reverse_playback;
 
     wait_frames = 70 / fps;
     frame_size = w * h;
-    data = new U8[num_frames * frame_size];
+    data = new U8[(last_frame + 1) * frame_size];
 
     // read contents (frames are stored in reverse order!)
-    int pos = 11;
-    for (int frame = num_frames - 1; frame >= 0; frame--) {
+    U32 pos = 11;
+    for (int frame = last_frame; frame >= 0; frame--) {
         U8 *dst = (U8 *)get_frame(frame);
-        if (frame != num_frames - 1)
+        if (frame != last_frame)
             memcpy(dst, get_frame(frame + 1), frame_size);
 
+        assert(pos + 2 <= s.len());
         int src_size = little_u16(&s[pos]);
         decode_transparent_rle(dst, &s[pos + 2]);
         pos += src_size;
     }
+}
+
+Animation::~Animation()
+{
+    delete[] data;
 }
 
 void Animation::tick()
@@ -116,7 +104,7 @@ void Animation::tick()
 
 void Animation::render()
 {
-    const U8 *frame = get_frame(reversed ? num_frames - 1 - cur_frame : cur_frame);
+    const U8 *frame = get_frame(reversed ? last_frame - cur_frame : cur_frame);
     if (!frame)
         return;
 
@@ -126,7 +114,7 @@ void Animation::render()
 
 bool Animation::is_done() const
 {
-    return cur_frame >= num_frames;
+    return cur_frame > last_frame;
 }
 
 void fix_palette(Palette pal)
