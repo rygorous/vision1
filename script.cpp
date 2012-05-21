@@ -543,24 +543,12 @@ static void cmd_megaanim()
     int frame_end = int_value_word();
     int posx = int_value_word();
     int posy = int_value_word();
-    int wait_frames = int_value_word();
+    int delay = int_value_word();
     int scale = int_value_word();
     int flip = int_value_word();
 
-    Slice grafile = read_file(grafilename.c_str());
-
-    for (int frm = frame_start; frm <= frame_end; frm++) {
-        U8 type;
-        char name[32];
-        sprintf(name, "%s%d", prefix.c_str(), frm);
-        int offs = find_gra_item(grafile, name, &type);
-        if (offs < 0 || type != 5)
-            errorExit("bad anim! (prefix=%s frame=%d offs=%d type=%d)", prefix.c_str(), frame, offs, type);
-
-        decode_delta_gfx(vga_screen, posx, posy, &grafile[offs], scale, flip != 0);
-        for (int i=0; i < wait_frames; i++)
-            frame();
-    }
+    add_anim(new MegaAnimation(grafilename.c_str(), prefix.c_str(), frame_start, frame_end, posx, posy,
+        delay, scale, flip));
 }
 
 static void cmd_color()

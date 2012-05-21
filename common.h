@@ -105,7 +105,7 @@ struct GfxBlock {
 
 class Animation { // abstract interface
 public:
-    virtual ~Animation() = 0;
+    virtual ~Animation();
 
     virtual void tick() = 0;
     virtual void render() = 0;
@@ -127,6 +127,25 @@ class BigAnimation : public Animation { // .ani / .big files
 public:
     BigAnimation(const char *filename, bool reverse_playback);
     virtual ~BigAnimation();
+
+    virtual void tick();
+    virtual void render();
+    virtual bool is_done() const;
+};
+
+class MegaAnimation : public Animation { // .gra files
+    Slice grafile;
+    char nameprefix[12];
+    int first_frame, last_frame;
+    int posx, posy;
+    int delay;
+    int scale, flip;
+    int cur_frame, cur_tick;
+
+public:
+    MegaAnimation(const char *grafilename, const char *prefix, int first_frame, int last_frame,
+        int posx, int posy, int delay, int scale, int flip);
+    virtual ~MegaAnimation();
 
     virtual void tick();
     virtual void render();

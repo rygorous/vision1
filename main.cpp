@@ -183,7 +183,7 @@ static void init()
     // 07 = skip this column
     // 80 = blocked
 
-    Slice s = read_xored("data/init.par");
+    Slice s = read_xored("data/vision1.par");
     run_script(s, true);
 }
 

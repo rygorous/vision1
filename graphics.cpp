@@ -141,6 +141,9 @@ void BigAnimation::tick()
 
 void BigAnimation::render()
 {
+    if (cur_tick)
+        return;
+
     const U8 *frame = get_frame(reversed ? last_frame - cur_frame : cur_frame);
     if (!frame)
         return;
@@ -150,6 +153,48 @@ void BigAnimation::render()
 }
 
 bool BigAnimation::is_done() const
+{
+    return cur_frame > last_frame;
+}
+
+MegaAnimation::MegaAnimation(const char *grafilename, const char *prefix, int first_frame,
+    int last_frame, int posx, int posy, int delay, int scale, int flip)
+    : first_frame(first_frame), last_frame(last_frame), posx(posx), posy(posy),
+    delay(delay), scale(scale), flip(flip), cur_frame(first_frame), cur_tick(0)
+{
+    strcpy(nameprefix, prefix);
+    grafile = read_file(grafilename);
+}
+
+MegaAnimation::~MegaAnimation()
+{
+}
+
+void MegaAnimation::tick()
+{
+    // TODO loop handling
+    if (++cur_tick >= delay) {
+        cur_tick = 0;
+        cur_frame++;
+    }
+}
+
+void MegaAnimation::render()
+{
+    if (cur_tick)
+        return;
+
+    U8 type;
+    char name[32];
+    sprintf(name, "%s%d", nameprefix, cur_frame);
+    int offs = find_gra_item(grafile, name, &type);
+    if (offs < 0 || type != 5)
+        errorExit("bad anim! (prefix=%s frame=%d offs=%d type=%d)", nameprefix, frame, offs, type);
+
+    decode_delta_gfx(vga_screen, posx, posy, &grafile[offs], scale, flip != 0);
+}
+
+bool MegaAnimation::is_done() const
 {
     return cur_frame > last_frame;
 }
