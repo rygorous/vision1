@@ -410,7 +410,7 @@ static void cmd_if()
         if (has_prefix(line, "init"))
             cond = isInit;
         else if (has_prefix(line, "hot"))
-            cond = need_int_literal(line(3)) == 9999; // TODO real impl!
+            cond = need_int_literal(line(3)) == 2; // TODO real impl!
         else if (has_prefix(line, "cnt"))
             cond = need_int_literal(line(3)) == 1234; // TODO real impl!
         else if (has_prefix(line, "key"))
@@ -660,7 +660,7 @@ static void cmd_back()
     std::string filename = str_word();
     int slot = int_value_word();
 
-    if (slot == 2) { // TODO proper scroll support
+    if (slot == 1) { // TODO proper scroll support
         load_background(filename.c_str());
         set_palette();
     }

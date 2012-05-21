@@ -171,6 +171,14 @@ public:
     virtual bool is_done() const;
 };
 
+class SavedScreen {
+    U8 *data;
+
+public:
+    SavedScreen();
+    ~SavedScreen();
+};
+
 extern Palette palette_a, palette_b;
 
 void set_palette();

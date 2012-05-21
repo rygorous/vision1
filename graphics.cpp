@@ -262,6 +262,46 @@ bool MegaAnimation::is_done() const
     return cur_frame > last_frame;
 }
 
+// ---- screen saving
+
+namespace {
+    static const struct SaveDesc {
+        void *ptr;
+        int size;
+    } save_what[] = {
+        { vga_screen, sizeof(vga_screen) },
+        { vga_pal,    sizeof(vga_pal) },
+        { palette_a,  sizeof(palette_a) },
+        { palette_b,  sizeof(palette_b) },
+    };
+}
+
+SavedScreen::SavedScreen()
+{
+    int total_size = 0;
+    for (int i=0; i < ARRAY_COUNT(save_what); i++)
+        total_size += save_what[i].size;
+
+    data = new U8[total_size];
+
+    U8 *p = data;
+    for (int i=0; i < ARRAY_COUNT(save_what); i++) {
+        memcpy(p, save_what[i].ptr, save_what[i].size);
+        p += save_what[i].size;
+    }
+}
+
+SavedScreen::~SavedScreen()
+{
+    U8 *p = data;
+    for (int i=0; i < ARRAY_COUNT(save_what); i++) {
+        memcpy(save_what[i].ptr, p, save_what[i].size);
+        p += save_what[i].size;
+    }
+
+    delete[] data;
+}
+
 // ---- .mix files
 
 struct MixItem {

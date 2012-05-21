@@ -185,7 +185,7 @@ static void init()
     // 07 = skip this column
     // 80 = blocked
 
-    current_script = read_xored("data/init.par");
+    current_script = read_xored("data/rockboes.par");
     run_script(current_script, true);
 }
 
@@ -250,6 +250,8 @@ void frame()
     static U32 framestart = 0;
 
     // TODO mouse cursor handling here
+    if (!msgloop())
+        exit(1);
 
     HDC hdc = GetDC(hWnd);
     paint(hWnd, hdc);
