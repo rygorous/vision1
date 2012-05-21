@@ -81,23 +81,34 @@ Animation::~Animation()
 {
 }
 
-void ColorCycleAnimation::shift_up(Palette pal)
+int ColorCycleAnimation::next_offs(int cur) const
 {
-    PalEntry plast = pal[last];
-    memmove(&pal[first + 1], &pal[first], (last - first) * sizeof(PalEntry));
-    pal[first] = plast;
+    return (cur + count + (dir ? -1 : 1)) % count;
 }
 
-void ColorCycleAnimation::shift_down(Palette pal)
+void ColorCycleAnimation::render_pal(Palette out, const Palette in, int offs1, int offs2, int t) const
 {
-    PalEntry pfirst = pal[first];
-    memmove(&pal[first], &pal[first + 1], (last - first) * sizeof(PalEntry));
-    pal[last] = pfirst;
+    // 2-color cycles were probably intended to have sharp transitions
+    if (count <= 2)
+        t = 0;
+
+    for (int i=0; i < count; i++) {
+        const PalEntry &src1 = in[first + ((i + offs1) % count)];
+        const PalEntry &src2 = in[first + ((i + offs2) % count)];
+        PalEntry &dst = out[first + i];
+
+        dst.r = src1.r + (((src2.r - src1.r) * t) >> 8);
+        dst.g = src1.g + (((src2.g - src1.g) * t) >> 8);
+        dst.b = src1.b + (((src2.b - src1.b) * t) >> 8);
+    }
 }
 
 ColorCycleAnimation::ColorCycleAnimation(int first, int last, int delay, int dir)
-    : first(first), last(last), delay(delay), dir(dir), cur_tick(0)
+    : first(first), last(last), delay(delay), dir(dir), count(last - first + 1),
+    cur_offs(0), cur_tick(0)
 {
+    memcpy(orig_a, palette_a, sizeof(Palette));
+    memcpy(orig_b, palette_b, sizeof(Palette));
 }
 
 void ColorCycleAnimation::tick()
@@ -106,17 +117,13 @@ void ColorCycleAnimation::tick()
         return;
 
     cur_tick = 0;
-    if (dir) { // shift up
-        shift_up(palette_a);
-        shift_up(palette_b); // TODO controlled by flag
-    } else { // shift down
-        shift_down(palette_a);
-        shift_down(palette_b); // TODO controlled by flag
-    }
+    cur_offs = next_offs(cur_offs);
 }
 
 void ColorCycleAnimation::render()
 {
+    render_pal(palette_a, orig_a, cur_offs, next_offs(cur_offs), 256 * cur_tick / delay);
+    render_pal(palette_b, orig_b, cur_offs, next_offs(cur_offs), 256 * cur_tick / delay);
     set_palette();
 }
 

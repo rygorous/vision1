@@ -115,10 +115,12 @@ public:
 class ColorCycleAnimation : public Animation {
     int first, last;
     int delay, dir;
-    int cur_tick;
+    int count;
+    int cur_offs, cur_tick;
+    Palette orig_a, orig_b;
 
-    void shift_up(Palette pal);
-    void shift_down(Palette pal);
+    int next_offs(int cur) const;
+    void render_pal(Palette out, const Palette in, int offs1, int offs2, int t) const;
 
 public:
     ColorCycleAnimation(int first, int last, int delay, int dir);
