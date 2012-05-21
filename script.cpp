@@ -553,7 +553,8 @@ static void cmd_definelabel()
 
 static void cmd_stop()
 {
-    assert(0);
+    printf("STOP.\n");
+    // this is supposed to quit.
 }
 
 static void cmd_time()

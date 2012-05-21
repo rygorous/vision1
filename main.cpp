@@ -185,7 +185,7 @@ static void init()
     // 07 = skip this column
     // 80 = blocked
 
-    current_script = read_xored("data/rockboes.par");
+    current_script = read_xored("data/init.par");
     run_script(current_script, true);
 }
 

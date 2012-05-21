@@ -56,11 +56,11 @@ public:
     const Slice operator ()(U32 start, U32 end=~0u) const;
     Slice operator ()(U32 start, U32 end=~0u)   { return (Slice) ((const Slice&) *this)(start, end); }
 
-    U8 operator [](U32 i) const     { return ptr[i]; }
-    U8 &operator [](U32 i)          { return ptr[i]; }
+    const U8 &operator [](U32 i) const  { return ptr[i]; }
+    U8 &operator [](U32 i)              { return ptr[i]; }
 
-    operator void *() const         { return buf ? buf : NULL; }
-    U32 len() const                 { return length; }
+    operator void *() const             { return buf ? buf : NULL; }
+    U32 len() const                     { return length; }
 };
 
 struct PascalStr {
@@ -78,6 +78,7 @@ char *replace_ext(const char *filename, const char *newext);
 Slice try_read_file(const char *filename);
 Slice read_file(const char *filename);
 void write_file(const char *filename, const void *buf, int size);
+Slice try_read_xored(const char *filename);
 Slice read_xored(const char *filename);
 
 int little_u16(const U8 *p);
@@ -149,6 +150,7 @@ public:
     virtual void tick();
     virtual void render();
     virtual bool is_done() const;
+    void rewind();
 };
 
 class MegaAnimation : public Animation { // .gra files
@@ -177,6 +179,8 @@ class SavedScreen {
 public:
     SavedScreen();
     ~SavedScreen();
+
+    void restore();
 };
 
 extern Palette palette_a, palette_b;

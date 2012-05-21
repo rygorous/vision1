@@ -167,15 +167,23 @@ void write_file(const char *filename, const void *buf, int size)
     fclose(f);
 }
 
-Slice read_xored(const char *filename)
+Slice try_read_xored(const char *filename)
 {
-    Slice s = read_file(filename);
+    Slice s = try_read_file(filename);
     if (!s || s.len() < 2)
         return s;
 
     int start;
     decrypt(&s[0], s.len(), &start);
     return s(start);
+}
+
+Slice read_xored(const char *filename)
+{
+    Slice s = try_read_xored(filename);
+    if (!s)
+        errorExit("%s not found", filename);
+    return s;
 }
 
 // ---- decoding helpers

@@ -215,6 +215,11 @@ bool BigAnimation::is_done() const
     return cur_frame > last_frame;
 }
 
+void BigAnimation::rewind()
+{
+    cur_frame = 0;
+}
+
 MegaAnimation::MegaAnimation(const char *grafilename, const char *prefix, int first_frame,
     int last_frame, int posx, int posy, int delay, int scale, int flip)
     : first_frame(first_frame), last_frame(last_frame), posx(posx), posy(posy),
@@ -293,13 +298,17 @@ SavedScreen::SavedScreen()
 
 SavedScreen::~SavedScreen()
 {
+    restore();
+    delete[] data;
+}
+
+void SavedScreen::restore()
+{
     U8 *p = data;
     for (int i=0; i < ARRAY_COUNT(save_what); i++) {
         memcpy(save_what[i].ptr, p, save_what[i].size);
         p += save_what[i].size;
     }
-
-    delete[] data;
 }
 
 // ---- .mix files
