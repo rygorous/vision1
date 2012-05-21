@@ -467,8 +467,8 @@ static void cmd_pic()
 {
     clear_anim();
 
-    Slice filename = scan_word();
-    load_background(to_string(filename).c_str());
+    std::string filename = str_word();
+    load_background(filename.c_str());
 
     Slice other = scan_word();
     if (is_equal(other, "b")) {
@@ -515,11 +515,10 @@ static void cmd_exec()
 {
     Slice what = scan_word();
     if (is_equal(what, "dialog")) {
-        Slice charname = scan_word();
-        Slice dlgname = scan_word();
+        std::string charname = str_word();
+        std::string dlgname = str_word();
 
-        printf("!!! dialog %s %s\n", to_string(charname).c_str(), to_string(dlgname).c_str());
-        // TODO run dialog!
+        run_dialog(charname.c_str(), dlgname.c_str());
     } else {
         printf("don't know how to exec: ");
         print(what);

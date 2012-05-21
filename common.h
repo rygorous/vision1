@@ -198,6 +198,10 @@ bool eval_bool_expr(const Slice &expr);
 void game_frame();
 void run_script(Slice code, bool init);
 
+// dialog
+
+void run_dialog(const char *charname, const char *dlgname);
+
 // vars
 
 void init_vars();
