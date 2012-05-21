@@ -81,6 +81,50 @@ Animation::~Animation()
 {
 }
 
+void ColorCycleAnimation::shift_up(Palette pal)
+{
+    PalEntry plast = pal[last];
+    memmove(&pal[first + 1], &pal[first], (last - first) * sizeof(PalEntry));
+    pal[first] = plast;
+}
+
+void ColorCycleAnimation::shift_down(Palette pal)
+{
+    PalEntry pfirst = pal[first];
+    memmove(&pal[first], &pal[first + 1], (last - first) * sizeof(PalEntry));
+    pal[last] = pfirst;
+}
+
+ColorCycleAnimation::ColorCycleAnimation(int first, int last, int delay, int dir)
+    : first(first), last(last), delay(delay), dir(dir), cur_tick(0)
+{
+}
+
+void ColorCycleAnimation::tick()
+{
+    if (++cur_tick < delay)
+        return;
+
+    cur_tick = 0;
+    if (dir) { // shift up
+        shift_up(palette_a);
+        shift_up(palette_b); // TODO controlled by flag
+    } else { // shift down
+        shift_down(palette_a);
+        shift_down(palette_b); // TODO controlled by flag
+    }
+}
+
+void ColorCycleAnimation::render()
+{
+    set_palette();
+}
+
+bool ColorCycleAnimation::is_done() const
+{
+    return false;
+}
+
 const U8 *BigAnimation::get_frame(int frame) const
 {
     if (!data || frame < 0 || frame > last_frame)
@@ -99,7 +143,8 @@ BigAnimation::BigAnimation(const char *filename, bool reverse_playback)
     if (s.len() < 11)
         return;
 
-    // bytes 0-3???
+    U8 mode = s[0];
+    // bytes 1-3???
     posx = little_u16(&s[4]);
     posy = s[6];
     w = s[7];
@@ -110,19 +155,25 @@ BigAnimation::BigAnimation(const char *filename, bool reverse_playback)
 
     wait_frames = 70 / fps;
     frame_size = w * h;
-    data = new U8[(last_frame + 1) * frame_size];
+    int nbytes = (last_frame + 1) * frame_size;
+    data = new U8[nbytes];
 
     // read contents (frames are stored in reverse order!)
-    U32 pos = 11;
-    for (int frame = last_frame; frame >= 0; frame--) {
-        U8 *dst = (U8 *)get_frame(frame);
-        if (frame != last_frame)
-            memcpy(dst, get_frame(frame + 1), frame_size);
+    if (mode > 0x60) {
+        U32 pos = 11;
+        for (int frame = last_frame; frame >= 0; frame--) {
+            U8 *dst = (U8 *)get_frame(frame);
+            if (frame != last_frame)
+                memcpy(dst, get_frame(frame + 1), frame_size);
 
-        assert(pos + 2 <= s.len());
-        int src_size = little_u16(&s[pos]);
-        decode_transparent_rle(dst, &s[pos + 2]);
-        pos += src_size;
+            assert(pos + 2 <= s.len());
+            int src_size = little_u16(&s[pos]);
+            decode_transparent_rle(dst, &s[pos + 2]);
+            pos += src_size;
+        }
+    } else {
+        assert(s.len() == nbytes + 11);
+        memcpy(data, &s[11], (last_frame + 1) * frame_size);
     }
 }
 
@@ -164,6 +215,8 @@ MegaAnimation::MegaAnimation(const char *grafilename, const char *prefix, int fi
 {
     strcpy(nameprefix, prefix);
     grafile = read_file(grafilename);
+    loops_left = last_frame / 1000;
+    this->last_frame %= 1000;
 }
 
 MegaAnimation::~MegaAnimation()
@@ -172,10 +225,13 @@ MegaAnimation::~MegaAnimation()
 
 void MegaAnimation::tick()
 {
-    // TODO loop handling
     if (++cur_tick >= delay) {
         cur_tick = 0;
         cur_frame++;
+        if (cur_frame > last_frame && loops_left) {
+            cur_frame = first_frame;
+            loops_left--;
+        }
     }
 }
 
@@ -189,7 +245,7 @@ void MegaAnimation::render()
     sprintf(name, "%s%d", nameprefix, cur_frame);
     int offs = find_gra_item(grafile, name, &type);
     if (offs < 0 || type != 5)
-        errorExit("bad anim! (prefix=%s frame=%d offs=%d type=%d)", nameprefix, frame, offs, type);
+        errorExit("bad anim! (prefix=%s frame=%d offs=%d type=%d)", nameprefix, cur_frame, offs, type);
 
     decode_delta_gfx(vga_screen, posx, posy, &grafile[offs], scale, flip != 0);
 }

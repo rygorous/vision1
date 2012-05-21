@@ -112,6 +112,22 @@ public:
     virtual bool is_done() const = 0;
 };
 
+class ColorCycleAnimation : public Animation {
+    int first, last;
+    int delay, dir;
+    int cur_tick;
+
+    void shift_up(Palette pal);
+    void shift_down(Palette pal);
+
+public:
+    ColorCycleAnimation(int first, int last, int delay, int dir);
+
+    virtual void tick();
+    virtual void render();
+    virtual bool is_done() const;
+};
+
 class BigAnimation : public Animation { // .ani / .big files
     U8 *data;
     int frame_size;
@@ -141,6 +157,7 @@ class MegaAnimation : public Animation { // .gra files
     int delay;
     int scale, flip;
     int cur_frame, cur_tick;
+    int loops_left;
 
 public:
     MegaAnimation(const char *grafilename, const char *prefix, int first_frame, int last_frame,
@@ -176,6 +193,7 @@ private:
 // script
 
 bool eval_bool_expr(const Slice &expr);
+void game_frame();
 void run_script(Slice code, bool init);
 
 // vars

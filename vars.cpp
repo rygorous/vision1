@@ -36,6 +36,7 @@ void init_vars()
     set_var_int("puzzle", 0);
     set_var_int("hot", 999);
     set_var_str("key$", "");
+    set_var_str("multi$", "");
 }
 
 int get_var_int(const std::string &name)

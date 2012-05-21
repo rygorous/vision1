@@ -101,7 +101,7 @@ song stop
 
 wait <delay>
 
-	wait until prev. event complete
+	wait until all anims (?) complete
 	or, if delay specified, delay/10 seconds
 
 aussteig$:

@@ -6,26 +6,44 @@
 
 // ---- game tick
 
-static std::vector<Animation*> animations;
+namespace {
+    struct AnimDesc {
+        Animation *anim;
+        bool is_looped;
+    };
+}
 
-static void add_anim(Animation *anim)
+static std::vector<AnimDesc> animations;
+
+static void clear_anim()
 {
-    animations.push_back(anim);
+    while (animations.size()) {
+        delete animations.back().anim;
+        animations.pop_back();
+    }
+}
+
+static void add_anim(Animation *anim, bool looped=false)
+{
+    AnimDesc desc;
+    desc.anim = anim;
+    desc.is_looped = looped;
+    animations.push_back(desc);
 }
 
 static void render_anim()
 {
     for (auto it = animations.begin(); it != animations.end(); ++it)
-        (*it)->render();
+        it->anim->render();
 }
 
 static void tick_anim()
 {
     for (size_t i = 0; i < animations.size(); ) {
-        Animation *anim = animations[i];
-        anim->tick();
-        if (anim->is_done()) {
-            delete anim;
+        AnimDesc &desc = animations[i];
+        desc.anim->tick();
+        if (desc.anim->is_done()) {
+            delete desc.anim;
             animations[i] = animations.back();
             animations.pop_back();
         } else
@@ -33,7 +51,7 @@ static void tick_anim()
     }
 }
 
-static void game_frame()
+void game_frame()
 {
     render_anim();
     tick_anim();
@@ -43,9 +61,17 @@ static void game_frame()
     frame();
 }
 
+static bool are_anims_done()
+{
+    for (auto it = animations.begin(); it != animations.end(); ++it)
+        if (!it->is_looped)
+            return false;
+    return true;
+}
+
 static void wait_anim_done()
 {
-    while (animations.size())
+    while (!are_anims_done())
         game_frame();
 }
 
@@ -118,21 +144,36 @@ static void print(Slice s)
 
 // ---- "higher-level" parsing
 
+static bool int_literal(const Slice &s, int &i)
+{
+    U32 pos = 0;
+    int sign = 1;
+
+    i = 0;
+    if (pos < s.len() && s[pos] == '-')
+        sign = -1, pos++;
+
+    while (pos < s.len() && isdigit(s[pos]))
+        i = (i * 10) + (s[pos++] - '0');
+
+    i *= sign;
+    return pos == s.len();
+}
+
+static int need_int_literal(const Slice &s)
+{
+    int i;
+    if (!int_literal(s, i))
+        errorExit("int literal expected: \"%s\"", to_string(s).c_str());
+    return i;
+}
+
 static int int_value(const Slice &value)
 {
     // either a variable (which gets evaluated) or a literal
-    U32 pos = 0;
-    int i = 0, sign = 1;
-
-    // try to parse as an int
-    if (pos < value.len() && value[pos] == '-')
-        sign = -1, pos++;
-
-    while (pos < value.len() && isdigit(value[pos]))
-        i = (i * 10) + (value[pos++] - '0');
-
-    if (pos == value.len()) // succesfully parsed as int
-        return sign * i;
+    int i;
+    if (int_literal(value, i)) // parses as int?
+        return i;
     else // assume it's a variable name
         return get_var_int(to_string(value));
 }
@@ -184,7 +225,7 @@ static bool has_prefix(const Slice &value, const char *str)
     U32 pos = 0;
     while (pos < value.len() && str[pos] && tolower(value[pos]) == str[pos])
         pos++;
-    return pos == value.len();
+    return str[pos] == 0;
 }
 
 static bool is_equal(const Slice &value, const char *str)
@@ -368,6 +409,12 @@ static void cmd_if()
         // TODO there's more of them!
         if (has_prefix(line, "init"))
             cond = isInit;
+        else if (has_prefix(line, "hot"))
+            cond = need_int_literal(line(3)) == 9999; // TODO real impl!
+        else if (has_prefix(line, "cnt"))
+            cond = need_int_literal(line(3)) == 1234; // TODO real impl!
+        else if (has_prefix(line, "key"))
+            cond = false; // TODO real impl!
         else // assume it's an expression
             cond = bool_expr();
 
@@ -418,6 +465,8 @@ static void cmd_off()
 
 static void cmd_pic()
 {
+    clear_anim();
+
     Slice filename = scan_word();
     load_background(to_string(filename).c_str());
 
@@ -489,6 +538,7 @@ static void cmd_random()
 
 static void cmd_wait()
 {
+    // TODO wait has optional para, what does it do?
     wait_anim_done();
 }
 
@@ -558,11 +608,73 @@ static void cmd_color()
     int g = int_value_word();
     int b = int_value_word();
 
+    // TODO this should modify graphics pal!
     if (index >= 0 && index < 256) {
         vga_pal[index].r = r;
         vga_pal[index].g = g;
         vga_pal[index].b = b;
     }
+}
+
+static void cmd_cycle()
+{
+    int first = int_value_word();
+    int last = int_value_word();
+    int delay = int_value_word();
+    int dir = int_value_word();
+
+    add_anim(new ColorCycleAnimation(first, last, delay, dir));
+}
+
+static void cmd_fx()
+{
+    // TODO sound
+}
+
+static void cmd_grafix()
+{
+    // TODO grafix
+}
+
+static void cmd_def()
+{
+    // TODO def
+}
+
+static void cmd_hot()
+{
+    // TODO hot
+}
+
+static void cmd_print()
+{
+    // TODO print
+}
+
+static void cmd_ani()
+{
+    // TODO ani
+}
+
+static void cmd_back()
+{
+    std::string filename = str_word();
+    int slot = int_value_word();
+
+    if (slot == 2) { // TODO proper scroll support
+        load_background(filename.c_str());
+        set_palette();
+    }
+}
+
+static void cmd_scroll()
+{
+    // TODO implement
+}
+
+static void cmd_start()
+{
+    // TODO implement
 }
 
 static struct CommandDesc
@@ -574,13 +686,20 @@ static struct CommandDesc
 } commands[] = {
     ":",            1,  false,  cmd_definelabel,
     "add",          2,  false,  cmd_add,
+    "ani",          2,  false,  cmd_ani,
+    "back",         2,  false,  cmd_back,
     "big",          2,  false,  cmd_big,
     "black",        2,  false,  cmd_black,
     "color",        2,  false,  cmd_color,
+    "cycle",        2,  false,  cmd_cycle,
+    "def",          2,  false,  cmd_def,
     "else",         2,  true,   cmd_else,
     "end",          2,  true,   cmd_end,
     "exec",         2,  false,  cmd_exec,
     "fade",         2,  false,  cmd_fade,
+    "fx",           2,  false,  cmd_fx,
+    "grafix",       2,  false,  cmd_grafix,
+    "hot",          2,  false,  cmd_hot,
     "if",           2,  true,   cmd_if,
     "jump",         1,  false,  cmd_jump,
     "keyenable",    2,  false,  cmd_keyenable,
@@ -588,9 +707,12 @@ static struct CommandDesc
     "megaani",      2,  false,  cmd_megaanim,
     "off",          2,  false,  cmd_off,
     "pic",          2,  false,  cmd_pic,
+    "print",        2,  false,  cmd_print,
+    "scroll",       2,  false,  cmd_scroll,
     "set",          2,  false,  cmd_set,
     "song",         2,  false,  cmd_song,
-    "stop",         2,  false,  cmd_stop,
+    "start",        3,  false,  cmd_start,
+    "stop",         3,  false,  cmd_stop,
     "time",         2,  false,  cmd_time,
     "random",       2,  false,  cmd_random,
     "wait",         2,  false,  cmd_wait,

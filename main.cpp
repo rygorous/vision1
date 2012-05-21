@@ -157,6 +157,8 @@ static const U8 fontpal_small_default[16] = {
     0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
 };
 
+static Slice current_script;
+
 static void init()
 {
     init_vars();
@@ -183,8 +185,8 @@ static void init()
     // 07 = skip this column
     // 80 = blocked
 
-    Slice s = read_xored("data/vision1.par");
-    run_script(s, true);
+    current_script = read_xored("data/rockboes.par");
+    run_script(current_script, true);
 }
 
 static void update()
@@ -218,6 +220,9 @@ static void update()
         frame++;
     }
 #endif
+
+    run_script(current_script, false);
+    game_frame();
 }
 
 static void render()
