@@ -64,3 +64,14 @@ void set_var_str(const std::string &name, const std::string &value)
 {
     str_vars[canonical(name)] = value;
 }
+
+std::string get_var_as_str(const std::string &name)
+{
+    if (name.size() && name.back() == '$') // string var
+        return get_var_str(name);
+    else { // int var
+        char buf[32];
+        sprintf(buf, "%02d", get_var_int(name));
+        return std::string(buf);
+    }
+}

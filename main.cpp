@@ -145,7 +145,7 @@ static void createWindow(HINSTANCE hInstance)
 		errorExit("CreateWindow failed!\n");
 }
 
-static Font bigfont;
+Font bigfont;
 
 static const U8 fontpal_big_default[16] = {
     0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,

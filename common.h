@@ -17,21 +17,11 @@ typedef signed int      S32;
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 #define ARRAY_COUNT(x) (sizeof(x)/sizeof(*(x)))
 
-// main
-static const int WIDTH = 320;
-static const int HEIGHT = 200;
-
 struct PalEntry {
     U8 r, g, b;
 };
 
 typedef PalEntry Palette[256];
-
-extern U8 vga_screen[WIDTH * HEIGHT];
-extern Palette vga_pal;
-
-void errorExit(const char *fmt, ...);
-void frame();
 
 // util
 struct Buffer;
@@ -194,10 +184,14 @@ struct Font {
     Font();
 
     void load(const char *filename, bool isBig, const U8 *palette);
-    void print(int x, int y, char *str);
+    void print(int x, int y, const char *str, int len);
+    void print(int x, int y, const char *str);
+    int glyph_width(U8 ch) const;
+    int str_width(const char *str, int len) const;
 
 private:
     void print_glyph(int x, int y, int glyph);
+    static int glyph_index(U8 ch);
 
     GfxBlock gfx;
     const U8 *widths;
@@ -223,5 +217,21 @@ void set_var_int(const std::string &name, int value);
 
 std::string get_var_str(const std::string &name);
 void set_var_str(const std::string &name, const std::string &value);
+
+std::string get_var_as_str(const std::string &name);
+
+// main
+
+static const int WIDTH = 320;
+static const int HEIGHT = 200;
+
+extern U8 vga_screen[WIDTH * HEIGHT];
+extern Palette vga_pal;
+
+extern Font bigfont;
+
+void errorExit(const char *fmt, ...);
+void frame();
+
 
 #endif

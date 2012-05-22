@@ -67,21 +67,33 @@ void Font::load(const char *filename, bool isBig, const U8 *palette)
     memcpy(pal, palette, sizeof(pal));
 }
 
-void Font::print(int x, int y, char *str)
+void Font::print(int x, int y, const char *str, int len)
 {
-    while (*str) {
-        int glyph = (U8) *str++;
-
-        // remapping from original game
-        if (glyph == 0xe1)
-            glyph = 0x9b;
-        else if (glyph >= 0xa0) // not in the original game!
-            continue;
-
+    for (int i=0; i < len; i++) {
+        int glyph = glyph_index(str[i]);
         if (glyph >= 0x20)
             print_glyph(x, y, glyph - 0x20);
-        x += widths[glyph];
+        x += widths[glyph]-1;
     }
+}
+
+void Font::print(int x, int y, const char *str)
+{
+    print(x, y, str, strlen(str));
+}
+
+int Font::glyph_width(U8 ch) const
+{
+    int glyph = glyph_index(ch);
+    return widths[glyph]-1;
+}
+
+int Font::str_width(const char *str, int len) const
+{
+    int w = 0;
+    for (int i=0; i < len; i++)
+        w += glyph_width(str[i]);
+    return w;
 }
 
 void Font::print_glyph(int x, int y, int glyph)
@@ -101,4 +113,14 @@ void Font::print_glyph(int x, int y, int glyph)
         srcp += gfx.w;
         dstp += WIDTH;
     }
+}
+
+int Font::glyph_index(U8 ch)
+{
+    if (ch == 0xe1)
+        return 0x9b;
+    else if (ch >= 0xa0) // not in the original game!
+        return 0;
+    else
+        return ch;
 }

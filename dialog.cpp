@@ -137,11 +137,101 @@ static void display_face(const char *charname)
     sprintf(filename, "chars/%s/face.frz", charname);
     Slice s = read_file(filename);
 
-    // use top 128 palette entries from .frz?
-    memcpy(&palette_a[128], &s[128*sizeof(PalEntry)], 128*sizeof(PalEntry));
-    memcpy(&palette_b[128], &s[128*sizeof(PalEntry)], 128*sizeof(PalEntry));
+    // use top 128 palette entries from .frz
+    // but keep topmost 8 as they are (used for text)
+    memcpy(&palette_a[128], &s[128*sizeof(PalEntry)], 0x78*sizeof(PalEntry));
+    memcpy(&palette_b[128], &s[128*sizeof(PalEntry)], 0x78*sizeof(PalEntry));
     decode_delta(vga_screen, &s[256*sizeof(PalEntry)]);
     set_palette();
+}
+
+static int word_end(const U8 *text, int start, int len)
+{
+    int i = start;
+    while (i < len && text[i] != ' ')
+        i++;
+    return i;
+}
+
+static void interpolate_line(std::string &out, std::vector<int> &breaks, const U8 *text, int len)
+{
+    int i = 0;
+    breaks.push_back(0);
+
+    while (i < len) {
+        switch (text[i]) {
+        case ' ': // space
+            breaks.push_back(out.size()); // a space is a break point
+            out.push_back(text[i++]); // and also a real character
+            break;
+        case '@': { // interpolated variable
+            int end = word_end(text, i + 1, len);
+            std::string varname((char*)text + i + 1, (char *)text+end);
+            out += get_var_as_str(varname);
+            i = end;
+            } break;
+        case '-': // might be a real dash or just a hyphenation point
+            if (i + 1 < len && text[i+1] >= 'a' && text[i+1] <= 'z') // looks like a hyphenation point
+                breaks.push_back(out.size());
+            else {
+                out.push_back(text[i]);
+                breaks.push_back(out.size());
+            }
+            i++;
+            break;
+        default:
+            out.push_back(text[i++]);
+            break;
+        }
+    }
+
+    breaks.push_back(out.size());
+}
+
+static void say_line(const U8 *text, int len)
+{
+    std::string txt;
+    std::vector<int> breaks;
+    interpolate_line(txt, breaks, text, len);
+
+    printf("interpolated: %s\n", txt.c_str());
+
+    // chop it all up into lines
+    int min_x = 4, max_x = min_x + 148;
+    int cur_x = min_x, cur_y = 42;
+    int lineh = 10;
+    int spacew = bigfont.glyph_width(' ');
+    int hyphenw = bigfont.glyph_width('-');
+    bool hashyph, lasthyph = false;
+
+    for (int brkpos=0; brkpos + 1 < breaks.size(); brkpos++) {
+        // width of fragment, plus trailing hyphen if necessary
+        int start = breaks[brkpos];
+        int end = breaks[brkpos + 1];
+        int width = bigfont.str_width(&txt[start], end-start);
+        int layoutw = width;
+        hashyph = false;
+        if (end < txt.size() && txt[end] != ' ' && txt[end-1] != '-') {
+            layoutw += hyphenw;
+            hashyph = true;
+        }
+
+        // break if we need to
+        if (cur_x + layoutw > max_x) {
+            if (lasthyph)
+                bigfont.print(cur_x, cur_y, "-");
+            cur_x = min_x;
+            cur_y += lineh;
+            if (txt[start] == ' ') {
+                start++;
+                width -= spacew;
+            }
+        }
+
+        bigfont.print(cur_x, cur_y, &txt[start], end-start);
+        cur_x += width;
+        lasthyph = hashyph;
+    }
 }
 
 void run_dialog(const char *charname, const char *dlgname)
@@ -175,21 +265,17 @@ void run_dialog(const char *charname, const char *dlgname)
         const DialogString *str;
         state = dlg.decode_and_follow(state, str);
 
-        // say the lines
-        char text[256];
-        memcpy(text, str->text, str->text_len);
-        text[str->text_len] = 0;
-        printf("%s\n", text);
+        say_line(str->text, str->text_len);
 
         // get response
         break;
     }
 
-    /*for (int i=0; i < 70; i++) {
+    for (int i=0; i < 700; i++) {
         talk.render();
         talk.tick();
         if (talk.is_done())
             talk.rewind();
         game_frame();
-    }*/
+    }
 }

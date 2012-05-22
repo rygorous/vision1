@@ -68,10 +68,17 @@ void set_palette()
 
 void set_palb_fade(int intensity)
 {
+    //for (int i=0; i < 256; i++) {
+    //    vga_pal[i].r = (palette_b[i].r * intensity) >> 8;
+    //    vga_pal[i].g = (palette_b[i].g * intensity) >> 8;
+    //    vga_pal[i].b = (palette_b[i].b * intensity) >> 8;
+    //}
+
+    U8 max = (intensity * 63) >> 8;
     for (int i=0; i < 256; i++) {
-        vga_pal[i].r = (palette_b[i].r * intensity) >> 8;
-        vga_pal[i].g = (palette_b[i].g * intensity) >> 8;
-        vga_pal[i].b = (palette_b[i].b * intensity) >> 8;
+        vga_pal[i].r = std::min(palette_b[i].r, max);
+        vga_pal[i].g = std::min(palette_b[i].g, max);
+        vga_pal[i].b = std::min(palette_b[i].b, max);
     }
 }
 

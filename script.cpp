@@ -190,13 +190,8 @@ static std::string str_value(const Slice &value)
             errorExit("bad string literal!");
 
         return to_string(value(1, value.len()-1));
-    } else if (value[value.len()-1] == '$') // string variable
-        return get_var_str(to_string(value));
-    else { // int variable
-        char buf[32];
-        sprintf(buf, "%02d", get_var_int(to_string(value)));
-        return std::string(buf);
-    }
+    } else
+        return get_var_as_str(to_string(value));
 }
 
 static std::string str_value_word()
@@ -623,7 +618,7 @@ static void cmd_cycle()
     int delay = int_value_word();
     int dir = int_value_word();
 
-    add_anim(new ColorCycleAnimation(first, last, delay, dir));
+    add_anim(new ColorCycleAnimation(first, last, delay, dir), true);
 }
 
 static void cmd_fx()
