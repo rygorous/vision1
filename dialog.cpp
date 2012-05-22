@@ -153,7 +153,12 @@ static int word_end(const U8 *text, int start, int len)
     return i;
 }
 
-static void interpolate_line(std::string &out, std::vector<int> &breaks, const U8 *text, int len)
+static bool is_punctuation(char ch)
+{
+    return (ch == '.' || ch == '!' || ch == '?' || ch == ',' || ch == ';' || ch == ':');
+}
+
+static void interpolate_line(std::string &out, std::vector<size_t> &breaks, const U8 *text, int len)
 {
     int i = 0;
     breaks.push_back(0);
@@ -169,6 +174,8 @@ static void interpolate_line(std::string &out, std::vector<int> &breaks, const U
             std::string varname((char*)text + i + 1, (char *)text+end);
             out += get_var_as_str(varname);
             i = end;
+            if (i+1 < len && is_punctuation(text[i+1]))
+                i++;
             } break;
         case '-': // might be a real dash or just a hyphenation point
             if (i + 1 < len && text[i+1] >= 'a' && text[i+1] <= 'z') // looks like a hyphenation point
@@ -191,10 +198,8 @@ static void interpolate_line(std::string &out, std::vector<int> &breaks, const U
 static void say_line(const U8 *text, int len)
 {
     std::string txt;
-    std::vector<int> breaks;
+    std::vector<size_t> breaks;
     interpolate_line(txt, breaks, text, len);
-
-    printf("interpolated: %s\n", txt.c_str());
 
     // chop it all up into lines
     int min_x = 4, max_x = min_x + 148;
@@ -204,10 +209,10 @@ static void say_line(const U8 *text, int len)
     int hyphenw = bigfont.glyph_width('-');
     bool hashyph, lasthyph = false;
 
-    for (int brkpos=0; brkpos + 1 < breaks.size(); brkpos++) {
+    for (size_t brkpos=0; brkpos + 1 < breaks.size(); brkpos++) {
         // width of fragment, plus trailing hyphen if necessary
-        int start = breaks[brkpos];
-        int end = breaks[brkpos + 1];
+        size_t start = breaks[brkpos];
+        size_t end = breaks[brkpos + 1];
         int width = bigfont.str_width(&txt[start], end-start);
         int layoutw = width;
         hashyph = false;
