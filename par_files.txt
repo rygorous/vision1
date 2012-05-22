@@ -11,14 +11,11 @@ RE TODO:
 --------
 
 - how are dialog variables (tom* or was it elo*) set from dialogs?
-- "big" anim decoder: talking faces etc.
 - update command list!
 
 NEED TO WRITE
 -------------
 
-- boolean expression evaluator
-- if/else/end logic
 - label support
 - dialog engine!
 
