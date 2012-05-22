@@ -224,7 +224,7 @@ bool BigAnimation::is_done() const
 
 void BigAnimation::rewind()
 {
-    cur_frame = 0;
+    cur_frame = cur_tick = 0;
 }
 
 MegaAnimation::MegaAnimation(const char *grafilename, const char *prefix, int first_frame,
