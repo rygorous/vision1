@@ -20,8 +20,6 @@ namespace {
         int root;
         Slice data;
 
-        const DialogString *decode(int item) const;
-        int get_next(int item, int which) const;
         int find_label_rec(int item, const U8 label[LABEL_LEN]) const;
         int find_label(const char *which, const char *whichend) const;
 
@@ -30,22 +28,10 @@ namespace {
 
         void load(const char *dlgname);
         int get_root() const;
+        int get_next(int item, int which) const;
+        const DialogString *decode(int item) const;
         int decode_and_follow(int state, const DialogString *&str);
     };
-}
-
-const DialogString *Dialog::decode(int item) const
-{
-    int offs = dir.at(item + 7);
-    return (offs == 0xffff) ? nullptr : (const DialogString *)&data[offs];
-}
-
-int Dialog::get_next(int item, int which) const
-{
-    if (which < 0 || which > 5)
-        return 0;
-    else
-        return dir[item + 1 + which];
 }
 
 int Dialog::find_label_rec(int item, const U8 label[LABEL_LEN]) const
@@ -98,6 +84,20 @@ void Dialog::load(const char *dlgname)
 int Dialog::get_root() const
 {
     return root;
+}
+
+int Dialog::get_next(int item, int which) const
+{
+    if (which < 0 || which > 5)
+        return 0;
+    else
+        return dir[item + 1 + which];
+}
+
+const DialogString *Dialog::decode(int item) const
+{
+    int offs = dir.at(item + 7);
+    return (offs == 0xffff) ? nullptr : (const DialogString *)&data[offs];
 }
 
 int Dialog::decode_and_follow(int state, const DialogString *&str)
@@ -286,8 +286,24 @@ void run_dialog(const char *charname, const char *dlgname)
 
         say_line(mouth, str->text, str->text_len);
 
-        // get response
-        for (int i=0; i < 140; i++)
+        // render the dialog options
+        int cur_y = 144;
+        for (int i=0; i < 5; i++) {
+            int option = dlg.get_next(state, i);
+            if (!option)
+                break;
+
+            str = dlg.decode(option);
+            if (!str)
+                break;
+
+            // TODO line breaking!
+            bigfont.print(0, cur_y, (const char*)str->text, str->text_len);
+            cur_y += 10;
+        }
+
+        // wait for response
+        for (;;)
             game_frame();
         break;
     }
