@@ -1,5 +1,6 @@
 #include "graphics.h"
 #include "util.h"
+#include <algorithm>
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>

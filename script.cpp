@@ -1,8 +1,8 @@
-#include "common.h"
-#include "util.h"
+#include "script.h"
 #include "graphics.h"
-#include "vars.h"
 #include "main.h"
+#include "util.h"
+#include "vars.h"
 #include "dialog.h"
 #include <assert.h>
 #include <stdio.h>

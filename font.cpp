@@ -1,7 +1,5 @@
-#include "common.h"
-#include "util.h"
-#include "graphics.h"
 #include "font.h"
+#include "graphics.h"
 #include <string.h>
 #include <assert.h>
 
@@ -60,12 +58,18 @@ Font::Font()
 {
     widths = 0;
     memset(pal, 0, sizeof(pal));
+    gfx = new GfxBlock;
+}
+
+Font::~Font()
+{
+    delete gfx;
 }
 
 void Font::load(const char *filename, const U8 *widths, const U8 *palette)
 {
-    gfx.load(filename);
-    gfx.resize(320, gfx.h);
+    gfx->load(filename);
+    gfx->resize(320, gfx->h);
     this->widths = widths;
     memcpy(pal, palette, sizeof(pal));
 }
@@ -101,7 +105,7 @@ int Font::str_width(const char *str, int len) const
 
 void Font::print_glyph(int x, int y, int glyph)
 {
-    const U8 *srcp = gfx.pixels + glyph_offsets[glyph];
+    const U8 *srcp = gfx->pixels + glyph_offsets[glyph];
     U8 *dstp = vga_screen + y*WIDTH + x;
 
     for (int y=0; y < 10; y++) {
@@ -113,7 +117,7 @@ void Font::print_glyph(int x, int y, int glyph)
             }
         }
 
-        srcp += gfx.w;
+        srcp += gfx->w;
         dstp += WIDTH;
     }
 }

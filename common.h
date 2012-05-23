@@ -3,8 +3,6 @@
 
 #define _CRT_SECURE_NO_WARNINGS
 
-#include <string>
-
 // types
 typedef unsigned char   U8;
 typedef unsigned short  U16;

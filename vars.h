@@ -1,6 +1,8 @@
 #ifndef __VARS_H__
 #define __VARS_H__
 
+#include <string>
+
 void init_vars();
 
 int get_var_int(const std::string &name);

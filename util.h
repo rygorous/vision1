@@ -26,7 +26,7 @@ public:
     const U8 &operator [](U32 i) const  { return ptr[i]; }
     U8 &operator [](U32 i)              { return ptr[i]; }
 
-    operator void *() const             { return buf ? buf : NULL; }
+    operator void *() const             { return buf ? buf : nullptr; }
     U32 len() const                     { return length; }
 };
 
