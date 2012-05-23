@@ -582,7 +582,7 @@ static void cmd_big()
         filename = filename.substr(1);
     }
     
-    add_anim(new BigAnimation(filename.c_str(), reverse));
+    add_anim(new_big_anim(filename.c_str(), reverse));
 }
 
 static void cmd_megaanim()
@@ -597,7 +597,7 @@ static void cmd_megaanim()
     int scale = int_value_word();
     int flip = int_value_word();
 
-    add_anim(new MegaAnimation(grafilename.c_str(), prefix.c_str(), frame_start, frame_end, posx, posy,
+    add_anim(new_mega_anim(grafilename.c_str(), prefix.c_str(), frame_start, frame_end, posx, posy,
         delay, scale, flip));
 }
 
@@ -623,7 +623,7 @@ static void cmd_cycle()
     int delay = int_value_word();
     int dir = int_value_word();
 
-    add_anim(new ColorCycleAnimation(first, last, delay, dir), true);
+    add_anim(new_color_cycle_anim(first, last, delay, dir), true);
 }
 
 static void cmd_fx()

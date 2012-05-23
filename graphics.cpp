@@ -1,6 +1,5 @@
-#include "common.h"
-#include "util.h"
 #include "graphics.h"
+#include "util.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -90,6 +89,26 @@ Animation::~Animation()
 {
 }
 
+class ColorCycleAnimation : public Animation {
+    int first, last;
+    int delay, dir;
+    int count;
+    int cur_offs, cur_tick;
+    Palette orig_a, orig_b;
+
+    int next_offs(int cur) const;
+    void render_pal(Palette out, const Palette in, int offs1, int offs2, int t) const;
+
+public:
+    ColorCycleAnimation(int first, int last, int delay, int dir);
+
+    virtual void tick();
+    virtual void render();
+    virtual bool is_done() const;
+    virtual void rewind();
+};
+
+
 int ColorCycleAnimation::next_offs(int cur) const
 {
     return (cur + count + (dir ? -1 : 1)) % count;
@@ -140,6 +159,38 @@ bool ColorCycleAnimation::is_done() const
 {
     return false;
 }
+
+void ColorCycleAnimation::rewind()
+{
+    cur_tick = cur_offs = 0;
+}
+
+Animation *new_color_cycle_anim(int first, int last, int delay, int dir)
+{
+    return new ColorCycleAnimation(first, last, delay, dir);
+}
+
+class BigAnimation : public Animation { // .ani / .big files
+    U8 *data;
+    int frame_size;
+
+    int posx, posy;
+    int w, h;
+    int last_frame, wait_frames;
+    int cur_frame, cur_tick;
+    bool reversed;
+
+    const U8 *get_frame(int frame) const;
+
+public:
+    BigAnimation(const char *filename, bool reverse_playback);
+    virtual ~BigAnimation();
+
+    virtual void tick();
+    virtual void render();
+    virtual bool is_done() const;
+    virtual void rewind();
+};
 
 const U8 *BigAnimation::get_frame(int frame) const
 {
@@ -229,6 +280,32 @@ void BigAnimation::rewind()
     cur_frame = cur_tick = 0;
 }
 
+Animation *new_big_anim(const char *filename, bool reverse_playback)
+{
+    return new BigAnimation(filename, reverse_playback);
+}
+
+class MegaAnimation : public Animation { // .gra files
+    Slice grafile;
+    char nameprefix[12];
+    int first_frame, last_frame;
+    int posx, posy;
+    int delay;
+    int scale, flip;
+    int cur_frame, cur_tick;
+    int loops_left;
+
+public:
+    MegaAnimation(const char *grafilename, const char *prefix, int first_frame, int last_frame,
+        int posx, int posy, int delay, int scale, int flip);
+    virtual ~MegaAnimation();
+
+    virtual void tick();
+    virtual void render();
+    virtual bool is_done() const;
+    virtual void rewind();
+};
+
 MegaAnimation::MegaAnimation(const char *grafilename, const char *prefix, int first_frame,
     int last_frame, int posx, int posy, int delay, int scale, int flip)
     : first_frame(first_frame), last_frame(last_frame), posx(posx), posy(posy),
@@ -274,6 +351,18 @@ void MegaAnimation::render()
 bool MegaAnimation::is_done() const
 {
     return cur_frame > last_frame;
+}
+
+void MegaAnimation::rewind()
+{
+    cur_frame = first_frame;
+    cur_tick = 0;
+}
+
+Animation *new_mega_anim(const char *grafilename, const char *prefix, int first_frame, int last_frame,
+    int posx, int posy, int delay, int scale, int flip)
+{
+    return new MegaAnimation(grafilename, prefix, first_frame, last_frame, posx, posy, delay, scale, flip);
 }
 
 // ---- screen saving

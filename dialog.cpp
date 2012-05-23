@@ -202,7 +202,7 @@ static void interpolate_line(std::string &out, std::vector<size_t> &breaks, cons
     breaks.push_back(out.size());
 }
 
-static void say_line(BigAnimation &mouth, const U8 *text, int len)
+static void say_line(Animation *mouth, const U8 *text, int len)
 {
     std::string txt;
     std::vector<size_t> breaks;
@@ -242,10 +242,10 @@ static void say_line(BigAnimation &mouth, const U8 *text, int len)
 
         // move the mouth for the right number of frames
         for (size_t i = start; i < end; i++) {
-            mouth.render();
-            mouth.tick();
-            if (mouth.is_done())
-                mouth.rewind();
+            mouth->render();
+            mouth->tick();
+            if (mouth->is_done())
+                mouth->rewind();
 
             game_frame();
         }
@@ -255,8 +255,8 @@ static void say_line(BigAnimation &mouth, const U8 *text, int len)
         lasthyph = hashyph;
     }
 
-    mouth.rewind();
-    mouth.render();
+    mouth->rewind();
+    mouth->render();
     game_frame();
 }
 
@@ -274,7 +274,7 @@ void run_dialog(const char *charname, const char *dlgname)
 
     char filename[128];
     sprintf(filename, "chars/%s/sprech.ani", charname);
-    BigAnimation mouth(filename, false);
+    Animation *mouth = new_big_anim(filename, false);
 
     Dialog dlg(charname);
     dlg.load(dlgname);
@@ -314,4 +314,6 @@ void run_dialog(const char *charname, const char *dlgname)
             game_frame();
         break;
     }
+
+    delete mouth;
 }
