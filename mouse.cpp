@@ -12,19 +12,29 @@ namespace {
         U8 img[16][16];
         int hotx, hoty;
     };
+
+    static const struct CursorDesc {
+        const char *filename;
+        int hotx, hoty;
+    } cursor_desc[] = {
+#define X(id, filename, hotx, hoty) { filename, hotx, hoty },
+        MOUSE_CURSORS
+#undef X
+    };
 }
 
-static CursorImg cr_normal;
-static CursorImg cr_turnl, cr_turnr, cr_turnu;
-static CursorImg cr_question;
-static CursorImg cr_grab;
-static CursorImg cr_talk;
-static CursorImg cr_forward;
+static CursorImg cursors[ARRAY_COUNT(cursor_desc)];
+static MouseCursor cur_cursor;
+
+void set_mouse_cursor(MouseCursor which)
+{
+    cur_cursor = which;
+}
 
 void render_mouse_cursor(U32 *dest, const U32 *pal)
 {
     // clip (in cursor space)
-    const CursorImg &cursor = cr_normal;
+    const CursorImg &cursor = cursors[cur_cursor];
     int rel_x = mouse_x - cursor.hotx;
     int rel_y = mouse_y - cursor.hoty;
     int x0 = std::max(0, 0 - rel_x);
@@ -43,34 +53,30 @@ void render_mouse_cursor(U32 *dest, const U32 *pal)
     }
 }
 
-static void load_cursor(CursorImg &cursor, Slice grafile, const char *name)
-{
-    U8 type;
-    int offs = find_gra_item(grafile, name, &type);
-    if (offs == -1 || type != 5)
-        error_exit("error finding cursor image '%s'\n", name);
-
-    U8 dest[16*WIDTH] = { 0 };
-    int decoded = decode_delta(dest, &grafile[offs]);
-    assert(decoded <= sizeof(dest));
-    for (int y=0; y < 16; y++)
-        memcpy(cursor.img[y], &dest[y*WIDTH], 16);
-    cursor.hotx = cursor.hoty = 2;
-}
-
 void init_mouse()
 {
-    printf("pointers.gra:\n");
+    set_mouse_cursor(MC_NORMAL);
     Slice gfx = read_file("grafix/pointers.gra");
 
-    load_cursor(cr_normal, gfx, "normal");
-    load_cursor(cr_turnl, gfx, "drehlink");
-    load_cursor(cr_turnr, gfx, "drehrech");
-    load_cursor(cr_turnu, gfx, "umdrehen");
-    load_cursor(cr_question, gfx, "fragezei");
-    load_cursor(cr_grab, gfx, "grabsch");
-    load_cursor(cr_talk, gfx, "laber");
-    load_cursor(cr_forward, gfx, "vorw\x8erts");
+    for (int i=0; i < ARRAY_COUNT(cursor_desc); i++) {
+        U8 dest[16*WIDTH] = { 0 };
+
+        if (cursor_desc[i].filename) {
+            U8 type;
+            int offs = find_gra_item(gfx, cursor_desc[i].filename, &type);
+            if (offs == -1 || type != 5)
+                error_exit("error finding cursor image '%s'\n", cursor_desc[i].filename);
+
+            int decoded = decode_delta(dest, &gfx[offs]);
+            assert(decoded <= sizeof(dest));
+        }
+
+        CursorImg &cursor = cursors[i];
+        for (int y=0; y < 16; y++)
+            memcpy(cursor.img[y], &dest[y*WIDTH], 16);
+        cursor.hotx = cursor_desc[i].hotx;
+        cursor.hoty = cursor_desc[i].hoty;
+    }
 }
 
 void shutdown_mouse()
