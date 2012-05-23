@@ -1,6 +1,8 @@
 #ifndef __UTIL_H__
 #define __UTIL_H__
 
+#include "common.h"
+
 struct Buffer;
 
 class Slice {

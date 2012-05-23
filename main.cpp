@@ -10,13 +10,12 @@
 #include "graphics.h"
 #include "font.h"
 #include "script.h"
+#include "mouse.h"
 
 #pragma comment(lib, "winmm.lib")
 
 U8 vga_screen[WIDTH * HEIGHT];
 PalEntry vga_pal[256];
-
-int mouse_x, mouse_y, mouse_button;
 
 // ---- utils
 
@@ -171,6 +170,7 @@ static void init()
 
     init_vars();
     init_font();
+    init_mouse();
 
 #if 0
     display_pic("grafix/back01.pic");
@@ -200,6 +200,7 @@ static void init()
 static void shutdown()
 {
     shutdown_font();
+    shutdown_mouse();
 
     timeEndPeriod(1);
 }

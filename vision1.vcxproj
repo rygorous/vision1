@@ -78,6 +78,7 @@
     <ClCompile Include="font.cpp" />
     <ClCompile Include="graphics.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="mouse.cpp" />
     <ClCompile Include="script.cpp" />
     <ClCompile Include="util.cpp" />
     <ClCompile Include="vars.cpp" />
@@ -88,6 +89,7 @@
     <ClInclude Include="font.h" />
     <ClInclude Include="graphics.h" />
     <ClInclude Include="main.h" />
+    <ClInclude Include="mouse.h" />
     <ClInclude Include="script.h" />
     <ClInclude Include="util.h" />
     <ClInclude Include="vars.h" />
