@@ -1,5 +1,6 @@
 #define _CRT_SECURE_NO_DEPRECATE
 #include "common.h"
+#include "util.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,7 +20,7 @@ struct Buffer
         nrefs = 0;
 
         if (!data)
-            errorExit("out of memory");
+            error_exit("out of memory");
     }
 
     ~Buffer()
@@ -153,7 +154,7 @@ Slice read_file(const char *filename)
 {
     Slice s = try_read_file(filename);
     if (!s)
-        errorExit("%s not found", filename);
+        error_exit("%s not found", filename);
     return s;
 }
 
@@ -161,7 +162,7 @@ void write_file(const char *filename, const void *buf, int size)
 {
     FILE *f = fopen(filename, "wb");
     if (!f)
-        errorExit("couldn't open %s for writing", filename);
+        error_exit("couldn't open %s for writing", filename);
 
     fwrite(buf, size, 1, f);
     fclose(f);
@@ -182,7 +183,7 @@ Slice read_xored(const char *filename)
 {
     Slice s = try_read_xored(filename);
     if (!s)
-        errorExit("%s not found", filename);
+        error_exit("%s not found", filename);
     return s;
 }
 

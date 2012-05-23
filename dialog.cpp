@@ -1,4 +1,11 @@
 #include "common.h"
+#include "dialog.h"
+#include "vars.h"
+#include "util.h"
+#include "graphics.h"
+#include "font.h"
+#include "script.h"
+#include "main.h"
 #include <vector>
 #include <assert.h>
 

@@ -84,6 +84,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common.h" />
+    <ClInclude Include="dialog.h" />
+    <ClInclude Include="font.h" />
+    <ClInclude Include="graphics.h" />
+    <ClInclude Include="main.h" />
+    <ClInclude Include="script.h" />
+    <ClInclude Include="util.h" />
+    <ClInclude Include="vars.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\paste1.txt" />

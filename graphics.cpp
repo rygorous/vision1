@@ -1,4 +1,6 @@
 #include "common.h"
+#include "util.h"
+#include "graphics.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -264,7 +266,7 @@ void MegaAnimation::render()
     sprintf(name, "%s%d", nameprefix, cur_frame);
     int offs = find_gra_item(grafile, name, &type);
     if (offs < 0 || type != 5)
-        errorExit("bad anim! (prefix=%s frame=%d offs=%d type=%d)", nameprefix, cur_frame, offs, type);
+        error_exit("bad anim! (prefix=%s frame=%d offs=%d type=%d)", nameprefix, cur_frame, offs, type);
 
     decode_delta_gfx(vga_screen, posx, posy, &grafile[offs], scale, flip != 0);
 }

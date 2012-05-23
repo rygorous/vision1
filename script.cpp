@@ -1,4 +1,9 @@
 #include "common.h"
+#include "util.h"
+#include "graphics.h"
+#include "vars.h"
+#include "main.h"
+#include "dialog.h"
 #include <assert.h>
 #include <stdio.h>
 #include <ctype.h>
@@ -164,7 +169,7 @@ static int need_int_literal(const Slice &s)
 {
     int i;
     if (!int_literal(s, i))
-        errorExit("int literal expected: \"%s\"", to_string(s).c_str());
+        error_exit("int literal expected: \"%s\"", to_string(s).c_str());
     return i;
 }
 
@@ -187,7 +192,7 @@ static std::string str_value(const Slice &value)
 {
     if (value[0] == '\'') { // literal
         if (value[value.len()-1] != '\'')
-            errorExit("bad string literal!");
+            error_exit("bad string literal!");
 
         return to_string(value(1, value.len()-1));
     } else
@@ -245,7 +250,7 @@ static Slice scan_bool_tok()
             pos++;
 
         if (pos == line.len())
-            errorExit("string continued past end of line");
+            error_exit("string continued past end of line");
         else
             pos++; // quote is part of the string!
     } else {
@@ -267,7 +272,7 @@ static std::string bool_str_value(const Slice &value)
 {
     if (value[0] == '\'') { // quoted literal
        if (value[value.len()-1] != '\'')
-            errorExit("bad string literal!");
+            error_exit("bad string literal!");
 
         return to_string(value(1, value.len()-1));
     } else if (value[value.len()-1] == '$') // string variable
@@ -292,7 +297,7 @@ static bool eval_bool_expr1(Slice &tok)
         else if (is_equal(op, "#"))
             return lhs != rhs;
         else
-            errorExit("unknown relational op (str): %s", to_string(op).c_str());
+            error_exit("unknown relational op (str): %s", to_string(op).c_str());
     } else { // assume integers
         int lhs = int_value(tok);
         Slice op = scan_bool_tok();
@@ -308,7 +313,7 @@ static bool eval_bool_expr1(Slice &tok)
         else if (is_equal(op, ">"))
             return lhs > rhs;
         else
-            errorExit("unknown relational op (int): %s", to_string(op).c_str());
+            error_exit("unknown relational op (int): %s", to_string(op).c_str());
     }
 
     return false;
@@ -359,7 +364,7 @@ static bool eval_bool_expr0(Slice &tok)
         } else if (!tok.len() || is_equal(tok, "^"))
             break;
         else
-            errorExit("unknown boolean op: %s", to_string(tok).c_str());
+            error_exit("unknown boolean op: %s", to_string(tok).c_str());
     }
 
     return result;
@@ -503,7 +508,7 @@ static void cmd_fade()
             frame();
         }
     } else
-        errorExit("unknown fade direction");
+        error_exit("unknown fade direction");
 }
 
 static void cmd_exec()

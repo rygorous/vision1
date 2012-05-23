@@ -1,4 +1,5 @@
 #include "common.h"
+#include "vars.h"
 #include <ctype.h>
 #include <unordered_map>
 
@@ -43,7 +44,7 @@ int get_var_int(const std::string &name)
 {
     auto iter = int_vars.find(canonical(name));
     if (iter == int_vars.end())
-        errorExit("variable not found: %s", name.c_str());
+        error_exit("variable not found: %s", name.c_str());
     return iter->second;
 }
 
@@ -56,7 +57,7 @@ std::string get_var_str(const std::string &name)
 {
     auto iter = str_vars.find(canonical(name));
     if (iter == str_vars.end())
-        errorExit("variable not found: %s", name.c_str());
+        error_exit("variable not found: %s", name.c_str());
     return iter->second;
 }
 

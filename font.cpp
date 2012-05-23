@@ -1,4 +1,7 @@
 #include "common.h"
+#include "util.h"
+#include "graphics.h"
+#include "font.h"
 #include <string.h>
 #include <assert.h>
 
@@ -59,11 +62,11 @@ Font::Font()
     memset(pal, 0, sizeof(pal));
 }
 
-void Font::load(const char *filename, bool isBig, const U8 *palette)
+void Font::load(const char *filename, const U8 *widths, const U8 *palette)
 {
     gfx.load(filename);
     gfx.resize(320, gfx.h);
-    widths = isBig ? widths_big : widths_small;
+    this->widths = widths;
     memcpy(pal, palette, sizeof(pal));
 }
 
@@ -123,4 +126,21 @@ int Font::glyph_index(U8 ch)
         return 0;
     else
         return ch;
+}
+
+Font bigfont;
+
+static const U8 fontpal_big_default[16] = {
+    0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
+    0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
+};
+
+static const U8 fontpal_small_default[16] = {
+    0xf0, 0xf1, 0xf2, 0xf3, 0x30, 0x2a, 0x25, 0x16,
+    0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
+};
+
+void init_font()
+{
+    bigfont.load("grafix/zsatz.blk", widths_big, fontpal_big_default);
 }

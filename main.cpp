@@ -5,6 +5,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include "common.h"
+#include "util.h"
+#include "vars.h"
+#include "graphics.h"
+#include "font.h"
+#include "script.h"
 
 #pragma comment(lib, "winmm.lib")
 
@@ -17,7 +22,7 @@ int mouse_x, mouse_y, mouse_button;
 
 static HWND hWnd = 0;
 
-void errorExit(const char *fmt, ...)
+void error_exit(const char *fmt, ...)
 {
 	char buffer[2048];
 	va_list arg;
@@ -146,7 +151,7 @@ static void createWindow(HINSTANCE hInstance)
 	wc.lpszMenuName = NULL;
 	wc.lpszClassName = "ryg.vision1";
 	if (!RegisterClass(&wc))
-		errorExit("RegisterClass failed!\n");
+		error_exit("RegisterClass failed!\n");
 
     DWORD style = WS_OVERLAPPEDWINDOW;
     RECT r = { 0, 0, WIDTH*2, HEIGHT * 2 };
@@ -155,33 +160,21 @@ static void createWindow(HINSTANCE hInstance)
 	hWnd = CreateWindow("ryg.vision1", "vision1", style, CW_USEDEFAULT, CW_USEDEFAULT,
 		r.right - r.left, r.bottom - r.top, NULL, NULL, hInstance, NULL);
 	if (!hWnd)
-		errorExit("CreateWindow failed!\n");
+		error_exit("CreateWindow failed!\n");
 }
-
-Font bigfont;
-
-static const U8 fontpal_big_default[16] = {
-    0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
-    0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
-};
-
-static const U8 fontpal_small_default[16] = {
-    0xf0, 0xf1, 0xf2, 0xf3, 0x30, 0x2a, 0x25, 0x16,
-    0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
-};
 
 static Slice current_script;
 
 static void init()
 {
     init_vars();
+    init_font();
 
 #if 0
     display_pic("grafix/back01.pic");
     display_face("chars/elo/face.frz");
 #endif
 
-    bigfont.load("grafix/zsatz.blk", true, fontpal_big_default);
     //fix_palette();
 
     //load_background("grafix/dock_l.pic");
