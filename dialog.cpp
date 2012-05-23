@@ -212,15 +212,15 @@ static void say_line(Animation *mouth, const U8 *text, int len)
     int min_x = 4, max_x = min_x + 148;
     int cur_x = min_x, cur_y = 42;
     int lineh = 10;
-    int spacew = bigfont.glyph_width(' ');
-    int hyphenw = bigfont.glyph_width('-');
+    int spacew = bigfont->glyph_width(' ');
+    int hyphenw = bigfont->glyph_width('-');
     bool hashyph, lasthyph = false;
 
     for (size_t brkpos=0; brkpos + 1 < breaks.size(); brkpos++) {
         // width of fragment, plus trailing hyphen if necessary
         size_t start = breaks[brkpos];
         size_t end = breaks[brkpos + 1];
-        int width = bigfont.str_width(&txt[start], end-start);
+        int width = bigfont->str_width(&txt[start], end-start);
         int layoutw = width;
         hashyph = false;
         if (end < txt.size() && txt[end] != ' ' && txt[end-1] != '-') {
@@ -231,7 +231,7 @@ static void say_line(Animation *mouth, const U8 *text, int len)
         // break if we need to
         if (cur_x + layoutw > max_x) {
             if (lasthyph)
-                bigfont.print(cur_x, cur_y, "-");
+                bigfont->print(cur_x, cur_y, "-");
             cur_x = min_x;
             cur_y += lineh;
             if (txt[start] == ' ') {
@@ -250,7 +250,7 @@ static void say_line(Animation *mouth, const U8 *text, int len)
             game_frame();
         }
 
-        bigfont.print(cur_x, cur_y, &txt[start], end-start);
+        bigfont->print(cur_x, cur_y, &txt[start], end-start);
         cur_x += width;
         lasthyph = hashyph;
     }
@@ -305,7 +305,7 @@ void run_dialog(const char *charname, const char *dlgname)
                 break;
 
             // TODO line breaking!
-            bigfont.print(0, cur_y, (const char*)str->text, str->text_len);
+            bigfont->print(0, cur_y, (const char*)str->text, str->text_len);
             cur_y += 10;
         }
 

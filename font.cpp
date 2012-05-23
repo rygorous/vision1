@@ -54,27 +54,47 @@ static const U16 glyph_offsets[128] = {
 
 // ---- font code
 
-Font::Font()
-{
-    widths = 0;
-    memset(pal, 0, sizeof(pal));
-    gfx = new GfxBlock;
-}
-
 Font::~Font()
 {
-    delete gfx;
 }
 
-void Font::load(const char *filename, const U8 *widths, const U8 *palette)
+void Font::print(int x, int y, const char *str) const
 {
-    gfx->load(filename);
-    gfx->resize(320, gfx->h);
-    this->widths = widths;
+    print(x, y, str, strlen(str));
+}
+
+int Font::str_width(const char *str) const
+{
+    return str_width(str, strlen(str));
+}
+
+class BitmapFont : public Font {
+public:
+    BitmapFont(const char *filename, const U8 *widths, const U8 *palette);
+
+    virtual void print(int x, int y, const char *str, int len) const;
+    virtual int glyph_width(char ch) const;
+    virtual int str_width(const char *str, int len) const;
+
+private:
+    void print_glyph(int x, int y, int glyph) const;
+    static int glyph_index(U8 ch);
+
+    GfxBlock gfx;
+    const U8 *widths;
+    U8 pal[16];
+};
+
+
+BitmapFont::BitmapFont(const char *filename, const U8 *widths, const U8 *palette)
+    : widths(widths)
+{
+    gfx.load(filename);
+    gfx.resize(320, gfx.h);
     memcpy(pal, palette, sizeof(pal));
 }
 
-void Font::print(int x, int y, const char *str, int len)
+void BitmapFont::print(int x, int y, const char *str, int len) const
 {
     for (int i=0; i < len; i++) {
         int glyph = glyph_index(str[i]);
@@ -84,18 +104,13 @@ void Font::print(int x, int y, const char *str, int len)
     }
 }
 
-void Font::print(int x, int y, const char *str)
-{
-    print(x, y, str, strlen(str));
-}
-
-int Font::glyph_width(U8 ch) const
+int BitmapFont::glyph_width(char ch) const
 {
     int glyph = glyph_index(ch);
     return widths[glyph]-1;
 }
 
-int Font::str_width(const char *str, int len) const
+int BitmapFont::str_width(const char *str, int len) const
 {
     int w = 0;
     for (int i=0; i < len; i++)
@@ -103,9 +118,9 @@ int Font::str_width(const char *str, int len) const
     return w;
 }
 
-void Font::print_glyph(int x, int y, int glyph)
+void BitmapFont::print_glyph(int x, int y, int glyph) const
 {
-    const U8 *srcp = gfx->pixels + glyph_offsets[glyph];
+    const U8 *srcp = gfx.pixels + glyph_offsets[glyph];
     U8 *dstp = vga_screen + y*WIDTH + x;
 
     for (int y=0; y < 10; y++) {
@@ -117,12 +132,12 @@ void Font::print_glyph(int x, int y, int glyph)
             }
         }
 
-        srcp += gfx->w;
+        srcp += gfx.w;
         dstp += WIDTH;
     }
 }
 
-int Font::glyph_index(U8 ch)
+int BitmapFont::glyph_index(U8 ch)
 {
     if (ch == 0xe1)
         return 0x9b;
@@ -132,7 +147,7 @@ int Font::glyph_index(U8 ch)
         return ch;
 }
 
-Font bigfont;
+Font *bigfont;
 
 static const U8 fontpal_big_default[16] = {
     0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
@@ -146,5 +161,10 @@ static const U8 fontpal_small_default[16] = {
 
 void init_font()
 {
-    bigfont.load("grafix/zsatz.blk", widths_big, fontpal_big_default);
+    bigfont = new BitmapFont("grafix/zsatz.blk", widths_big, fontpal_big_default);
+}
+
+void shutdown_font()
+{
+    delete bigfont;
 }

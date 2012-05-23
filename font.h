@@ -5,27 +5,21 @@
 
 struct GfxBlock;
 
-struct Font {
-    Font();
-    ~Font();
+class Font { // abstract interface
+public:
+    virtual ~Font();
 
-    void load(const char *filename, const U8 *widths, const U8 *palette);
-    void print(int x, int y, const char *str, int len);
-    void print(int x, int y, const char *str);
-    int glyph_width(U8 ch) const;
-    int str_width(const char *str, int len) const;
+    virtual void print(int x, int y, const char *str, int len) const = 0;
+    virtual int glyph_width(char ch) const = 0;
+    virtual int str_width(const char *str, int len) const = 0;
 
-private:
-    void print_glyph(int x, int y, int glyph);
-    static int glyph_index(U8 ch);
-
-    GfxBlock *gfx;
-    const U8 *widths;
-    U8 pal[16];
+    void print(int x, int y, const char *str) const;
+    int str_width(const char *str) const;
 };
 
-extern Font bigfont;
+extern Font *bigfont;
 
 void init_font();
+void shutdown_font();
 
 #endif

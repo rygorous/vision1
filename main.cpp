@@ -167,6 +167,8 @@ static Slice current_script;
 
 static void init()
 {
+    timeBeginPeriod(1);
+
     init_vars();
     init_font();
 
@@ -193,6 +195,13 @@ static void init()
 
     current_script = read_xored("data/init.par");
     run_script(current_script, true);
+}
+
+static void shutdown()
+{
+    shutdown_font();
+
+    timeEndPeriod(1);
 }
 
 static void update()
@@ -280,7 +289,6 @@ int main(int argc, char **argv)
     createWindow(hInstance);
 
 	ShowWindow(hWnd, SW_SHOW);
-    timeBeginPeriod(1);
 
     init();
 
@@ -294,5 +302,5 @@ int main(int argc, char **argv)
         }
     }
 
-    timeEndPeriod(1);
+    shutdown();
 }
