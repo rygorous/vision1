@@ -70,6 +70,16 @@ static void paint(HWND hwnd, HDC hdc)
     for (int i=0; i < WIDTH*HEIGHT; i++)
         bits[i] = pal[vga_screen[i]];
 
+    // render the cursor if required
+    POINT ptCursor;
+    RECT rcClient;
+    if (GetCursorPos(&ptCursor) &&
+        ScreenToClient(hwnd, &ptCursor) &&
+        GetClientRect(hwnd, &rcClient) &&
+        ptCursor.x >= rcClient.left && ptCursor.y >= rcClient.top &&
+        ptCursor.x < rcClient.right && ptCursor.y < rcClient.bottom)
+        render_mouse_cursor(bits, pal);
+
     StretchDIBits(hdc, 0, 0, WIDTH * 2, HEIGHT * 2, 0, 0, WIDTH, HEIGHT, bits, (BITMAPINFO *)&bmh, DIB_RGB_COLORS, SRCCOPY);
     delete[] bits;
 
@@ -117,16 +127,23 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
 		InvalidateRect(hWnd, NULL, FALSE);
 		break;
 
+    case WM_SETCURSOR:
+        if (LOWORD(lParam) == HTCLIENT) {
+            SetCursor(0);
+            return TRUE;
+        }
+        break;
+
     case WM_MOUSEMOVE:
     case WM_LBUTTONDOWN:
     case WM_LBUTTONUP:
-        mouse_x = LOWORD(lParam);
-        mouse_y = HIWORD(lParam);
+        mouse_x = LOWORD(lParam) / 2;
+        mouse_y = HIWORD(lParam) / 2;
         if (uMsg == WM_LBUTTONDOWN)
             mouse_button |= 1;
         else if (uMsg == WM_LBUTTONUP)
             mouse_button &= ~1;
-        break;
+        return 0;
 
 	default:
 		break;

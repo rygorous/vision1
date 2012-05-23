@@ -238,8 +238,9 @@ void decode_transparent_rle(U8 *dst, const U8 *src)
     }
 }
 
-void decode_delta(U8 *dst, const U8 *p)
+int decode_delta(U8 *dst, const U8 *p)
 {
+    U8 *dsto = dst;
     for (;;) {
         int skip = little_u16(p);
         p += 2;
@@ -255,6 +256,7 @@ void decode_delta(U8 *dst, const U8 *p)
 
         p++; // what does this byte do?
     }
+    return (int) (dst - dsto);
 }
 
 void decode_delta_gfx(U8 *dst, int x, int y, const U8 *p, int scale, bool flipX)
@@ -330,6 +332,20 @@ void decrypt(U8 *buffer, int nbytes, int *start)
         *start = 0;
 }
 
+void list_gra_contents(Slice grafile)
+{
+    int dir_size = little_u16(&grafile[0]);
+    int pos = 2;
+    while (pos < dir_size) {
+        int len = 0;
+        while (grafile[pos+len] >= ' ')
+            len++;
+        U8 type = grafile[pos+len];
+        printf("  %.*s type=%d\n", len, &grafile[pos], type);
+        pos += len + 1 + 4;
+    }
+}
+
 int find_gra_item(Slice grafile, const char *name, U8 *type)
 {
     int dir_size = little_u16(&grafile[0]);
@@ -338,7 +354,7 @@ int find_gra_item(Slice grafile, const char *name, U8 *type)
         int len = 0, matchlen = 0;
         while (grafile[pos+len] >= ' ') {
             if (name[matchlen] &&
-                toupper(grafile[pos+len]) == toupper(name[matchlen]))
+                toupper(grafile[pos+len]) == toupper((U8)name[matchlen]))
                 matchlen++;
             len++;
         }
