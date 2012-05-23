@@ -11,6 +11,8 @@
 U8 vga_screen[WIDTH * HEIGHT];
 PalEntry vga_pal[256];
 
+int mouse_x, mouse_y, mouse_button;
+
 // ---- utils
 
 static HWND hWnd = 0;
@@ -110,6 +112,17 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
 	case WM_SIZE:
 		InvalidateRect(hWnd, NULL, FALSE);
 		break;
+
+    case WM_MOUSEMOVE:
+    case WM_LBUTTONDOWN:
+    case WM_LBUTTONUP:
+        mouse_x = LOWORD(lParam);
+        mouse_y = HIWORD(lParam);
+        if (uMsg == WM_LBUTTONDOWN)
+            mouse_button |= 1;
+        else if (uMsg == WM_LBUTTONUP)
+            mouse_button &= ~1;
+        break;
 
 	default:
 		break;
