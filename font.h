@@ -1,10 +1,6 @@
 #ifndef __FONT_H__
 #define __FONT_H__
 
-#include "common.h"
-
-struct GfxBlock;
-
 class Font { // abstract interface
 public:
     virtual ~Font();
