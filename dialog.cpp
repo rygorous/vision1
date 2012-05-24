@@ -165,7 +165,7 @@ static int word_end(const U8 *text, int start, int len)
 
 static bool is_punctuation(char ch)
 {
-    return (ch == '.' || ch == '!' || ch == '?' || ch == ',' || ch == ';' || ch == ':');
+    return (ch == '.' || ch == '!' || ch == '?' || ch == ',' || ch == ';' || ch == ':' || ch == ' ');
 }
 
 static void interpolate_line(std::string &out, std::vector<size_t> &breaks, const U8 *text, int len)
@@ -202,7 +202,8 @@ static void interpolate_line(std::string &out, std::vector<size_t> &breaks, cons
         }
     }
 
-    breaks.push_back(out.size());
+    if (!out.empty())
+        breaks.push_back(out.size());
 }
 
 static int print_text_linebreak(const Font *font, const U8 *text, int len, int x0, int y0, int x1,
@@ -278,6 +279,14 @@ static void say_line(Animation *mouth, const U8 *text, int len)
     game_frame();
 }
 
+static int handle_text_input(Dialog &dlg, int state, const DialogString *str)
+{
+    // TODO implement line editor (but need keyboard events first)
+    std::string varname((char *)str->text + 1, (char *)str->text + str->text_len);
+    set_var_str(varname, "hund");
+    return dlg.get_next(state, 0);
+}
+
 static int handle_choices(Dialog &dlg, int state, int *hover)
 {
     int choice = -1, new_hover = -1;
@@ -293,7 +302,9 @@ static int handle_choices(Dialog &dlg, int state, int *hover)
             break;
         }
 
-        // TODO line breaking!
+        if (i == 0 && str->text[0] == '@' && str->text[str->text_len-1] == '$')
+            return handle_text_input(dlg, option, str);
+
         int start_y = cur_y;
         const Font *font = (i == *hover) ? bigfont_highlight : bigfont;
         cur_y = print_text_linebreak(font, str->text, str->text_len, 0, cur_y, 320, nullptr, nullptr);
