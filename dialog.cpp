@@ -203,25 +203,25 @@ static void interpolate_line(std::string &out, std::vector<size_t> &breaks, cons
     breaks.push_back(out.size());
 }
 
-static void say_line(Animation *mouth, const U8 *text, int len)
+static int print_text_linebreak(const Font *font, const U8 *text, int len, int x0, int y0, int x1,
+    void (*fragment_callback)(void *user, size_t, size_t), void *user)
 {
     std::string txt;
     std::vector<size_t> breaks;
     interpolate_line(txt, breaks, text, len);
 
-    // chop it all up into lines
-    int min_x = 4, max_x = min_x + 148;
-    int cur_x = min_x, cur_y = 42;
+    int cur_x = x0, cur_y = y0;
     int lineh = 10;
-    int spacew = bigfont->glyph_width(' ');
-    int hyphenw = bigfont->glyph_width('-');
+    int spacew = font->glyph_width(' ');
+    int hyphenw = font->glyph_width('-');
     bool hashyph, lasthyph = false;
 
+    // chop it all up into lines
     for (size_t brkpos=0; brkpos + 1 < breaks.size(); brkpos++) {
         // width of fragment, plus trailing hyphen if necessary
         size_t start = breaks[brkpos];
         size_t end = breaks[brkpos + 1];
-        int width = bigfont->str_width(&txt[start], end-start);
+        int width = font->str_width(&txt[start], end-start);
         int layoutw = width;
         hashyph = false;
         if (end < txt.size() && txt[end] != ' ' && txt[end-1] != '-') {
@@ -230,10 +230,10 @@ static void say_line(Animation *mouth, const U8 *text, int len)
         }
 
         // break if we need to
-        if (cur_x + layoutw > max_x) {
+        if (cur_x + layoutw > x1) {
             if (lasthyph)
-                bigfont->print(cur_x, cur_y, "-");
-            cur_x = min_x;
+                font->print(cur_x, cur_y, "-");
+            cur_x = x0;
             cur_y += lineh;
             if (txt[start] == ' ') {
                 start++;
@@ -242,19 +242,34 @@ static void say_line(Animation *mouth, const U8 *text, int len)
         }
 
         // move the mouth for the right number of frames
-        for (size_t i = start; i < end; i++) {
-            mouth->render();
-            mouth->tick();
-            if (mouth->is_done())
-                mouth->rewind();
+        if (fragment_callback)
+            fragment_callback(user, start, end);
 
-            game_frame();
-        }
-
-        bigfont->print(cur_x, cur_y, &txt[start], end-start);
+        font->print(cur_x, cur_y, &txt[start], end-start);
         cur_x += width;
         lasthyph = hashyph;
     }
+
+    return cur_y + lineh;
+}
+
+static void say_line_callback(void *user, size_t start, size_t end)
+{
+    Animation *mouth = (Animation *)user;
+    for (size_t i = start; i < end; i++) {
+        mouth->render();
+        mouth->tick();
+        if (mouth->is_done())
+            mouth->rewind();
+
+        game_frame();
+    }
+}
+
+static void say_line(Animation *mouth, const U8 *text, int len)
+{
+    int x = 4, y = 42;
+    print_text_linebreak(bigfont, text, len, x, y, x + 144, say_line_callback, mouth);
 
     mouth->rewind();
     mouth->render();
@@ -266,7 +281,7 @@ static int handle_choices(Dialog &dlg, int state, int *hover)
     int choice = -1, new_hover = -1;
     set_mouse_cursor(MC_NORMAL);
 
-    int cur_y = 144;
+    int cur_y = 145;
     for (int i=0; i < 5; i++) {
         int option = dlg.get_next(state, i);
         if (!option)
@@ -280,9 +295,7 @@ static int handle_choices(Dialog &dlg, int state, int *hover)
 
         // TODO line breaking!
         int start_y = cur_y;
-
-        bigfont->print(0, cur_y, (const char*)str->text, str->text_len);
-        cur_y += 10;
+        cur_y = print_text_linebreak(bigfont, str->text, str->text_len, 0, cur_y, 320, nullptr, nullptr);
 
         if (mouse_y >= start_y && mouse_y < cur_y) {
             new_hover = i;
@@ -290,6 +303,8 @@ static int handle_choices(Dialog &dlg, int state, int *hover)
             if (mouse_button & 1)
                 choice = dlg.get_next(option, 0);
         }
+
+        cur_y += 2;
     }
 
     *hover = new_hover;

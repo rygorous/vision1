@@ -72,12 +72,10 @@ static void paint(HWND hwnd, HDC hdc)
 
     // render the cursor if required
     POINT ptCursor;
-    RECT rcClient;
     if (GetCursorPos(&ptCursor) &&
         ScreenToClient(hwnd, &ptCursor) &&
-        GetClientRect(hwnd, &rcClient) &&
-        ptCursor.x >= rcClient.left && ptCursor.y >= rcClient.top &&
-        ptCursor.x < rcClient.right && ptCursor.y < rcClient.bottom)
+        ptCursor.x >= rc.left && ptCursor.y >= rc.top &&
+        ptCursor.x < rc.right && ptCursor.y < rc.bottom)
         render_mouse_cursor(bits, pal);
 
     StretchDIBits(hdc, 0, 0, WIDTH * 2, HEIGHT * 2, 0, 0, WIDTH, HEIGHT, bits, (BITMAPINFO *)&bmh, DIB_RGB_COLORS, SRCCOPY);

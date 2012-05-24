@@ -1,5 +1,6 @@
 #include "font.h"
 #include "graphics.h"
+#include <algorithm>
 #include <string.h>
 #include <assert.h>
 
@@ -118,22 +119,28 @@ int BitmapFont::str_width(const char *str, int len) const
     return w;
 }
 
-void BitmapFont::print_glyph(int x, int y, int glyph) const
+void BitmapFont::print_glyph(int posx, int posy, int glyph) const
 {
-    const U8 *srcp = gfx.pixels + glyph_offsets[glyph];
-    U8 *dstp = vga_screen + y*WIDTH + x;
+    // clip (in glyph space)
+    int x0 = std::max(0, 0 - posx);
+    int y0 = std::max(0, 0 - posy);
+    int x1 = std::min(16, WIDTH - posx);
+    int y1 = std::min(10, HEIGHT - posy);
 
-    for (int y=0; y < 10; y++) {
-        for (int x=0; x < 16; x++) {
+    const U8 *srcp = gfx.pixels + glyph_offsets[glyph] + y0*gfx.w;
+    int offset = (posy + y0)*WIDTH + posx;
+
+    for (int y=y0; y < y1; y++) {
+        for (int x=x0; x < x1; x++) {
             U8 col = srcp[x];
             if (col) {
                 assert(col >= 0xf0);
-                dstp[x] = pal[col - 0xf0];
+                vga_screen[offset + x] = pal[col - 0xf0];
             }
         }
 
         srcp += gfx.w;
-        dstp += WIDTH;
+        offset += WIDTH;
     }
 }
 
