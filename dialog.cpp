@@ -286,7 +286,7 @@ static int handle_choices(Dialog &dlg, int state, int *hover)
             new_hover = i;
             set_mouse_cursor(MC_TALK);
             if (mouse_button & 1)
-                choice = i;
+                choice = dlg.get_next(option, 0);
         }
     }
 
@@ -329,7 +329,8 @@ void run_dialog(const char *charname, const char *dlgname)
         int choice, hover = -1;
         while ((choice = handle_choices(dlg, state, &hover)) == -1)
             game_frame();
-        break;
+
+        state = choice;
     }
 
     delete mouth;
