@@ -30,6 +30,7 @@ namespace {
 
         int find_label_rec(int item, const U8 label[LABEL_LEN]) const;
         int find_label(const char *which, const char *whichend) const;
+        const DialogString *decode(int item) const;
 
     public:
         Dialog(const char *charname);
@@ -37,7 +38,7 @@ namespace {
         void load(const char *dlgname);
         int get_root() const;
         int get_next(int item, int which) const;
-        const DialogString *decode(int item) const;
+        bool is_chain(int item) const;
         int decode_and_follow(int state, const DialogString *&str);
     };
 }
@@ -67,6 +68,14 @@ int Dialog::find_label(const char *which, const char *whichend) const
     while (i < LABEL_LEN)
         buf[i++] = ' ';
     return find_label_rec(root, buf);
+}
+
+const DialogString *Dialog::decode(int item) const
+{
+    if (!item)
+        return nullptr;
+    int offs = dir.at(item + 7);
+    return (offs == 0xffff) ? nullptr : (const DialogString *)&data[offs];
 }
 
 Dialog::Dialog(const char *charname)
@@ -102,10 +111,9 @@ int Dialog::get_next(int item, int which) const
         return dir[item + 1 + which];
 }
 
-const DialogString *Dialog::decode(int item) const
+bool Dialog::is_chain(int item) const
 {
-    int offs = dir.at(item + 7);
-    return (offs == 0xffff) ? nullptr : (const DialogString *)&data[offs];
+    return dir[item + 7] == 0xffff;
 }
 
 int Dialog::decode_and_follow(int state, const DialogString *&str)
@@ -118,8 +126,8 @@ int Dialog::decode_and_follow(int state, const DialogString *&str)
             return state;
 
         // it's a link, follow it
-        const char *target = (const char *)str->text;
-        const char *targetend = target + str->text_len;
+        const char *target = (const char *)str->text + 1;
+        const char *targetend = (const char *)str->text + str->text_len;
         if (const char *colon = (const char *)memchr(str->text, ':', str->text_len)) {
             char dlgname[256];
             int dlglen = colon - target;
@@ -134,9 +142,9 @@ int Dialog::decode_and_follow(int state, const DialogString *&str)
         state = find_label(target, targetend);
     }
 
-    // if we get here, it's an error
+    // no line
     str = nullptr;
-    return 0;
+    return state;
 }
 
 static void display_face(const char *charname)
@@ -283,13 +291,11 @@ static int handle_choices(Dialog &dlg, int state, int *hover)
 
     int cur_y = 145;
     for (int i=0; i < 5; i++) {
-        int option = dlg.get_next(state, i);
-        if (!option)
-            break;
-        const DialogString *str = dlg.decode(option);
+        const DialogString *str;
+        int option = dlg.decode_and_follow(dlg.get_next(state, i), str);
         if (!str) {
             if (i == 0 && (mouse_button & 1)) // no choices - just wait for click
-                return 0;
+                return option ? dlg.get_next(option, 0) : 0;
             break;
         }
 
