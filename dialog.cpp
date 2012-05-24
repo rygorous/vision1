@@ -38,7 +38,6 @@ namespace {
         void load(const char *dlgname);
         int get_root() const;
         int get_next(int item, int which) const;
-        bool is_chain(int item) const;
         int decode_and_follow(int state, const DialogString *&str);
     };
 }
@@ -109,11 +108,6 @@ int Dialog::get_next(int item, int which) const
         return 0;
     else
         return dir[item + 1 + which];
-}
-
-bool Dialog::is_chain(int item) const
-{
-    return dir[item + 7] == 0xffff;
 }
 
 int Dialog::decode_and_follow(int state, const DialogString *&str)
@@ -339,6 +333,7 @@ void run_dialog(const char *charname, const char *dlgname)
 
     sprintf(filename, "chars/%s/%s.vb", charname, dlgname);
     Slice vars = try_read_xored(filename);
+    print_hex("vars", vars);
 
     SavedScreen clean_scr;
 

@@ -323,7 +323,7 @@ void decrypt(U8 *buffer, int nbytes, int *start)
     if (buffer[0] == 0x0a && buffer[1] == 0x00) // already de-xored
         *start = 2;
     else if (buffer[0] == 0x5c) {
-        U8 key = buffer[0];
+        U8 key = buffer[1];
         for (int i=0; i < nbytes; i++)
             buffer[i] ^= key;
 
@@ -332,7 +332,29 @@ void decrypt(U8 *buffer, int nbytes, int *start)
         *start = 0;
 }
 
-void list_gra_contents(Slice grafile)
+static bool is_printable(char ch)
+{
+    return (ch >= 32 && ch <= 127);
+}
+
+void print_hex(const char *desc, const Slice &what, int bytes_per_line)
+{
+    printf("%s:\n", desc);
+    int len = what.len();
+    for (int i=0; i < len; i += bytes_per_line) {
+        int j;
+        printf("[%04x]", i);
+        for (j=i; j < i + bytes_per_line && j < len; j++)
+            printf(" %02x", what[j]);
+        printf("%*s", (i + bytes_per_line - j) * 3 + 1, "");
+        for (j=i; j < i + bytes_per_line && j < len; j++)
+            putc(is_printable(what[j]) ? what[j] : '.', stdout);
+        putc('\n', stdout);
+    }
+    printf("\n");
+}
+
+void list_gra_contents(const Slice &grafile)
 {
     int dir_size = little_u16(&grafile[0]);
     int pos = 2;
@@ -346,7 +368,7 @@ void list_gra_contents(Slice grafile)
     }
 }
 
-int find_gra_item(Slice grafile, const char *name, U8 *type)
+int find_gra_item(const Slice &grafile, const char *name, U8 *type)
 {
     int dir_size = little_u16(&grafile[0]);
     int pos = 2;

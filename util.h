@@ -57,8 +57,9 @@ int decode_delta(U8 *dst, const U8 *src); // returns number of bytes decoded
 void decode_delta_gfx(U8 *dst, int x, int y, const U8 *src, int scale, bool flipX);
 void decrypt(U8 *buffer, int nbytes, int *start);
 
-void list_gra_contents(Slice grafile); // for debugging
-int find_gra_item(Slice grafile, const char *name, U8 *type);
+void print_hex(const char *name, const Slice &what, int bytes_per_line=16);
+void list_gra_contents(const Slice &grafile); // for debugging
+int find_gra_item(const Slice &grafile, const char *name, U8 *type);
 
 void decode_level(const char *filename, int level);
 
