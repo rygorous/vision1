@@ -271,10 +271,12 @@ static int handle_choices(Dialog &dlg, int state, int *hover)
         int option = dlg.get_next(state, i);
         if (!option)
             break;
-
         const DialogString *str = dlg.decode(option);
-        if (!str)
+        if (!str) {
+            if (i == 0 && (mouse_button & 1)) // no choices - just wait for click
+                return 0;
             break;
+        }
 
         // TODO line breaking!
         int start_y = cur_y;
@@ -324,12 +326,15 @@ void run_dialog(const char *charname, const char *dlgname)
         
         const DialogString *str;
         state = dlg.decode_and_follow(state, str);
+        if (!state || !str)
+            break;
 
         say_line(mouth, str->text, str->text_len);
         int choice, hover = -1;
         while ((choice = handle_choices(dlg, state, &hover)) == -1)
             game_frame();
 
+        set_mouse_cursor(MC_NORMAL);
         state = choice;
     }
 
