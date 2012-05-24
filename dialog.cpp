@@ -6,6 +6,7 @@
 #include "font.h"
 #include "script.h"
 #include "main.h"
+#include "mouse.h"
 #include <vector>
 #include <assert.h>
 
@@ -260,6 +261,39 @@ static void say_line(Animation *mouth, const U8 *text, int len)
     game_frame();
 }
 
+static int handle_choices(Dialog &dlg, int state, int *hover)
+{
+    int choice = -1, new_hover = -1;
+    set_mouse_cursor(MC_NORMAL);
+
+    int cur_y = 144;
+    for (int i=0; i < 5; i++) {
+        int option = dlg.get_next(state, i);
+        if (!option)
+            break;
+
+        const DialogString *str = dlg.decode(option);
+        if (!str)
+            break;
+
+        // TODO line breaking!
+        int start_y = cur_y;
+
+        bigfont->print(0, cur_y, (const char*)str->text, str->text_len);
+        cur_y += 10;
+
+        if (mouse_y >= start_y && mouse_y < cur_y) {
+            new_hover = i;
+            set_mouse_cursor(MC_TALK);
+            if (mouse_button & 1)
+                choice = i;
+        }
+    }
+
+    *hover = new_hover;
+    return choice;
+}
+
 void run_dialog(const char *charname, const char *dlgname)
 {
     SavedScreen saved_scr;
@@ -292,25 +326,8 @@ void run_dialog(const char *charname, const char *dlgname)
         state = dlg.decode_and_follow(state, str);
 
         say_line(mouth, str->text, str->text_len);
-
-        // render the dialog options
-        int cur_y = 144;
-        for (int i=0; i < 5; i++) {
-            int option = dlg.get_next(state, i);
-            if (!option)
-                break;
-
-            str = dlg.decode(option);
-            if (!str)
-                break;
-
-            // TODO line breaking!
-            bigfont->print(0, cur_y, (const char*)str->text, str->text_len);
-            cur_y += 10;
-        }
-
-        // wait for response
-        for (;;)
+        int choice, hover = -1;
+        while ((choice = handle_choices(dlg, state, &hover)) == -1)
             game_frame();
         break;
     }
