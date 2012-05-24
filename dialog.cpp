@@ -295,7 +295,8 @@ static int handle_choices(Dialog &dlg, int state, int *hover)
 
         // TODO line breaking!
         int start_y = cur_y;
-        cur_y = print_text_linebreak(bigfont, str->text, str->text_len, 0, cur_y, 320, nullptr, nullptr);
+        const Font *font = (i == *hover) ? bigfont_highlight : bigfont;
+        cur_y = print_text_linebreak(font, str->text, str->text_len, 0, cur_y, 320, nullptr, nullptr);
 
         if (mouse_y >= start_y && mouse_y < cur_y) {
             new_hover = i;

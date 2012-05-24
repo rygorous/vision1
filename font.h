@@ -13,7 +13,7 @@ public:
     int str_width(const char *str) const;
 };
 
-extern Font *bigfont;
+extern Font *bigfont, *bigfont_highlight;
 
 void init_font();
 void shutdown_font();

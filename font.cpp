@@ -154,11 +154,16 @@ int BitmapFont::glyph_index(U8 ch)
         return ch;
 }
 
-Font *bigfont;
+Font *bigfont, *bigfont_highlight;
 
 static const U8 fontpal_big_default[16] = {
     0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
     0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
+};
+
+static const U8 fontpal_big_yellow[16] = {
+    0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
+    0xfc, 0xfd, 0xfe, 0xff, 0xf8, 0xf9, 0xfa, 0xfb
 };
 
 static const U8 fontpal_small_default[16] = {
@@ -169,9 +174,11 @@ static const U8 fontpal_small_default[16] = {
 void init_font()
 {
     bigfont = new BitmapFont("grafix/zsatz.blk", widths_big, fontpal_big_default);
+    bigfont_highlight = new BitmapFont("grafix/zsatz.blk", widths_big, fontpal_big_yellow);
 }
 
 void shutdown_font()
 {
     delete bigfont;
+    delete bigfont_highlight;
 }
