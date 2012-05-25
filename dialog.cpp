@@ -15,14 +15,16 @@ static const int LABEL_LEN = 5;
 namespace {
     // this is the raw file format
     struct DialogString {
-        U8 text_len;
-        U8 unk[3];
-        U8 label[LABEL_LEN];
-        U8 unk2;
-        U8 text[1]; // actually text_len bytes
+        U8 text_len;            // 0
+        U8 var_index;           // 1
+        U8 unk[2];              // 2-3
+        U8 label[LABEL_LEN];    // 4-8
+        U8 unk2;                // 9
+        U8 text[1];             // 10; actually text_len bytes
     };
 
     class Dialog {
+    public:
         std::string charname;
         std::vector<int> dir;
         int root;
@@ -323,6 +325,26 @@ static int handle_choices(Dialog &dlg, int state, int *hover)
     return choice;
 }
 
+static void describe_dialog_str(Dialog &dlg, int item)
+{
+    printf("links    = [");
+    for (int i=0; i < 8; i++)
+        printf(" %d", dlg.dir[item+i]);
+    printf(" ]\n");
+
+    const DialogString *str;
+    dlg.decode_and_follow(item, str);
+    if (str) {
+        printf("var_index= %d\n", str->var_index);
+        for (int i=0; i < 2; i++)
+            printf("unk[%d]   = %d\n", i, str->unk[i]);
+        printf("label    = %.*s\n", 5, str->label);
+        printf("unk2     = %d\n", str->unk2);
+        printf("text     = \"%.*s\"\n", str->text_len, str->text);
+    }
+    printf("\n");
+}
+
 void run_dialog(const char *charname, const char *dlgname)
 {
     SavedScreen saved_scr;
@@ -356,6 +378,10 @@ void run_dialog(const char *charname, const char *dlgname)
         state = dlg.decode_and_follow(state, str);
         if (!state || !str)
             break;
+
+        describe_dialog_str(dlg, state);
+        for (int i=0; i < 5; i++)
+            describe_dialog_str(dlg, dlg.get_next(state, i));
 
         say_line(mouth, str->text, str->text_len);
         int choice, hover = -1;
