@@ -143,14 +143,19 @@ int Dialog::decode_and_follow(int state, const DialogString *&str)
         const char *targetend = (const char *)str->text + str->text_len;
         if (const char *colon = (const char *)memchr(str->text, ':', str->text_len)) {
             char dlgname[256];
+            char labelname[LABEL_LEN];
             int dlglen = colon - target;
             assert(dlglen < ARRAY_COUNT(dlgname));
+
+            int lablen = std::min(LABEL_LEN, targetend - (colon + 1));
+            memcpy(labelname, colon + 1, lablen);
 
             memcpy(dlgname, target, dlglen);
             dlgname[colon - target] = 0;
             load(dlgname);
 
-            target = colon + 1;
+            target = labelname;
+            targetend = labelname + lablen;
         }
         state = find_label(target, targetend);
     }
