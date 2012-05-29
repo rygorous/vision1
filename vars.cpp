@@ -20,11 +20,15 @@ void init_vars()
     // init to default values!
     set_var_str("vorname$", "");
     set_var_str("name$", "");
+
+    // dialog stuff
+    set_var_int("tom1", 0);
+    set_var_int("tom2", 0);
+    set_var_int("tom3", 0);
     
     // bunch of dummy stuff to test aufzug.par
     set_var_int("stufe", 0);
     set_var_int("ok", 0);
-    set_var_int("tom3", 0);
     set_var_int("money", 500);
     set_var_int("kalorie", 500);
     set_var_int("maxplo", 0);
@@ -51,6 +55,14 @@ int get_var_int(const std::string &name)
 void set_var_int(const std::string &name, int value)
 {
     int_vars[canonical(name)] = value;
+}
+
+int *get_var_int_ptr(const std::string &name)
+{
+    auto iter = int_vars.find(canonical(name));
+    if (iter == int_vars.end())
+        error_exit("variable not found: %s", name.c_str());
+    return &iter->second;
 }
 
 std::string get_var_str(const std::string &name)

@@ -16,8 +16,9 @@ namespace {
     // this is the raw file format
     struct DialogString {
         U8 text_len;            // 0
-        U8 var_index;           // 1
-        U8 unk[2];              // 2-3
+        U8 write_var;           // 1
+        U8 unk;                 // 2
+        U8 test_var;            // 3
         U8 label[LABEL_LEN];    // 4-8
         U8 unk2;                // 9
         U8 text[1];             // 10; actually text_len bytes
@@ -31,7 +32,6 @@ namespace {
 
         int find_label_rec(int item, const U8 label[LABEL_LEN]) const;
         int find_label(const char *which, const char *whichend) const;
-        const DialogString *decode(int item) const;
 
     public:
         Dialog(const char *charname);
@@ -39,10 +39,25 @@ namespace {
         void load(const char *dlgname);
         int get_root() const;
         int get_next(int item, int which) const;
+        const DialogString *decode(int item) const;
         int decode_and_follow(int state, const DialogString *&str);
         
         void debug_dump(int item);
         void debug_dump_all();
+    };
+
+    struct DialogVars {
+      static const int NUM_VARS = 64;
+      bool bool_vars[NUM_VARS];
+      int *bool_out[NUM_VARS];
+      int *add_vars[NUM_VARS];
+
+      bool bool_set[NUM_VARS];
+      int add_val[NUM_VARS];
+
+      DialogVars();
+      bool is_set(int which) const;
+      void update(int which);
     };
 }
 
@@ -71,14 +86,6 @@ int Dialog::find_label(const char *which, const char *whichend) const
     while (i < LABEL_LEN)
         buf[i++] = ' ';
     return find_label_rec(root, buf);
-}
-
-const DialogString *Dialog::decode(int item) const
-{
-    if (!item)
-        return nullptr;
-    int offs = dir.at(item + 7);
-    return (offs == 0xffff) ? nullptr : (const DialogString *)&data[offs];
 }
 
 Dialog::Dialog(const char *charname)
@@ -112,6 +119,14 @@ int Dialog::get_next(int item, int which) const
         return 0;
     else
         return dir[item + 1 + which];
+}
+
+const DialogString *Dialog::decode(int item) const
+{
+    if (!item)
+        return nullptr;
+    int offs = dir.at(item + 7);
+    return (offs == 0xffff) ? nullptr : (const DialogString *)&data[offs];
 }
 
 int Dialog::decode_and_follow(int state, const DialogString *&str)
@@ -155,9 +170,9 @@ void Dialog::debug_dump(int item)
 
     const DialogString *str = decode(item);
     if (str) {
-        printf("var_index= %d\n", str->var_index);
-        for (int i=0; i < 2; i++)
-            printf("unk[%d]   = %d\n", i, str->unk[i]);
+        printf("write_var= %d\n", str->write_var);
+        printf("unk      = %d\n", str->unk);
+        printf("test_var = %d\n", str->test_var);
         printf("label    = \"%.*s\"\n", LABEL_LEN, str->label);
         printf("unk2     = %d\n", str->unk2);
         printf("text     = \"%.*s\"\n", str->text_len, str->text);
@@ -169,6 +184,37 @@ void Dialog::debug_dump_all()
 {
     for (size_t i=5; i < dir.size(); i += 8)
         debug_dump(i);
+}
+
+DialogVars::DialogVars()
+{
+    for (int i=0; i < NUM_VARS; i++) {
+        bool_vars[i] = false;
+        bool_out[i] = nullptr;
+        add_vars[i] = nullptr;
+        bool_set[i] = false;
+        add_val[i] = 0;
+    }
+}
+
+bool DialogVars::is_set(int which) const
+{
+    if (which == 0)
+        return true;
+    else if (which >= 1 && which < NUM_VARS)
+        return bool_vars[which];
+    else
+        return false;
+}
+
+void DialogVars::update(int which)
+{
+    assert(which >= 1 && which < NUM_VARS);
+    bool_vars[which] = bool_set[which];
+    if (bool_out[which])
+        *bool_out[which] = bool_vars[which];
+    if (add_vars[which])
+        *add_vars[which] += add_val[which];
 }
 
 static void display_face(const char *charname)
@@ -328,7 +374,7 @@ static int handle_choices(Dialog &dlg, int state, int *hover)
         int option = dlg.decode_and_follow(dlg.get_next(state, i), str);
         if (!str) {
             if (i == 0 && (mouse_button & 1)) // no choices - just wait for click
-                return option ? dlg.get_next(option, 0) : 0;
+                return option;
             break;
         }
 
@@ -343,7 +389,7 @@ static int handle_choices(Dialog &dlg, int state, int *hover)
             new_hover = i;
             set_mouse_cursor(MC_TALK);
             if (mouse_button & 1)
-                choice = dlg.get_next(option, 0);
+                choice = option;
         }
 
         cur_y += 2;
@@ -351,6 +397,69 @@ static int handle_choices(Dialog &dlg, int state, int *hover)
 
     *hover = new_hover;
     return choice;
+}
+
+static int handle_transition(Dialog &dlg, DialogVars &vars, int state)
+{
+    if (state <= 0)
+        return state;
+
+    for (int i=0; i < 5; i++) {
+        int item = dlg.get_next(state, i);
+        if (!item)
+            continue;
+
+        const DialogString *str = dlg.decode(item);
+        if (str && vars.is_set(str->test_var)) {
+            // found a valid transition, this is the ticket
+            vars.update(str->write_var);
+            return item;
+        }
+    }
+
+    return 0;
+}
+
+static void parse_vb(DialogVars &vars, const Slice &vbfile)
+{
+    if (!vbfile.len())
+        return;
+        
+    print_hex("vbfile", vbfile);
+    Slice scan = vbfile;
+    while (scan.len()) {
+        Slice line = chop_line(scan);
+        if (!line.len())
+            continue;
+
+        Slice orig_line = line;
+
+        int mode = tolower(line[0]);
+        line = line(1);
+        int index = scan_int(line);
+        if (index < 0 || index >= DialogVars::NUM_VARS) {
+            error_exit("vb: index=%d out of range!", index);
+            continue;
+        }
+
+        line = eat_heading_space(line);
+
+        switch (mode) {
+        case 'r': // read var
+            printf("vb: slot %d read var '%s'\n", index, to_string(line).c_str());
+            vars.bool_vars[index] = get_var_int(to_string(line)) != 0;
+            break;
+
+        case 'v': // write var
+            printf("vb: slot %d write var '%s'\n", index, to_string(line).c_str());
+            vars.bool_out[index] = get_var_int_ptr(to_string(line));
+            break;
+
+        default:
+            error_exit("vb: don't understand line '%.*s'\n", orig_line.len(), &orig_line[0]);
+            break;
+        }
+    }
 }
 
 void run_dialog(const char *charname, const char *dlgname)
@@ -372,15 +481,13 @@ void run_dialog(const char *charname, const char *dlgname)
     Dialog dlg(charname);
     dlg.load(dlgname);
 
-    printf("===== START FULL DIALOG DUMP\n\n");
+    //printf("===== START FULL DIALOG DUMP\n\n");
+    //dlg.debug_dump_all();
+    //printf("\n===== END FULL DIALOG DUMP\n\n");
 
-    dlg.debug_dump_all();
-
-    printf("\n===== END FULL DIALOG DUMP\n\n");
-
+    DialogVars vars;
     sprintf(filename, "chars/%s/%s.vb", charname, dlgname);
-    Slice vars = try_read_xored(filename);
-    print_hex("vars", vars);
+    parse_vb(vars, try_read_xored(filename));
 
     SavedScreen clean_scr;
 
@@ -393,9 +500,9 @@ void run_dialog(const char *charname, const char *dlgname)
         if (!state || !str)
             break;
 
-        dlg.debug_dump(state);
-        for (int i=0; i < 5; i++)
-            dlg.debug_dump(dlg.get_next(state, i));
+        //dlg.debug_dump(state);
+        //for (int i=0; i < 5; i++)
+        //    dlg.debug_dump(dlg.get_next(state, i));
 
         say_line(mouth, str->text, str->text_len);
         int choice, hover = -1;
@@ -403,7 +510,7 @@ void run_dialog(const char *charname, const char *dlgname)
             game_frame();
 
         set_mouse_cursor(MC_NORMAL);
-        state = choice;
+        state = handle_transition(dlg, vars, choice);
     }
 
     delete mouth;

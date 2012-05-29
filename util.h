@@ -2,6 +2,7 @@
 #define __UTIL_H__
 
 #include "common.h"
+#include <string>
 
 struct Buffer;
 
@@ -62,5 +63,10 @@ void list_gra_contents(const Slice &grafile); // for debugging
 int find_gra_item(const Slice &grafile, const char *name, U8 *type);
 
 void decode_level(const char *filename, int level);
+
+std::string to_string(const Slice &sl);
+Slice chop_line(Slice &scan_buf); // returns first line, slices it off scan_buf
+Slice eat_heading_space(Slice text); // eats any white space characters at start
+int scan_int(Slice &scan_buf);
 
 #endif

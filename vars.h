@@ -7,6 +7,7 @@ void init_vars();
 
 int get_var_int(const std::string &name);
 void set_var_int(const std::string &name, int value);
+int *get_var_int_ptr(const std::string &name); // this is ugly!
 
 std::string get_var_str(const std::string &name);
 void set_var_str(const std::string &name, const std::string &value);

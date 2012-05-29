@@ -424,3 +424,55 @@ void decode_level(const char *filename, int level)
     write_file("out_level.dat", levelData, 2*2000);
     write_file("script_level.dat", prle, pend - prle);
 }
+
+std::string to_string(const Slice &sl)
+{
+    Slice &s = (Slice &)sl;
+    return std::string(&s[0], &s[0] + s.len());
+}
+
+static bool islinespace(U8 ch)
+{
+    return ch == '\r' || ch == '\n';
+}
+
+Slice chop_line(Slice &buf)
+{
+    // find end of this line
+    U32 pos = 0;
+    while (pos < buf.len() && !islinespace(buf[pos]))
+        pos++;
+    Slice line = buf(0, pos);
+
+    // skip to start of next non-empty line
+    while (pos < buf.len() && islinespace(buf[pos]))
+        pos++;
+    buf = buf(pos);
+
+    return line;
+}
+
+Slice eat_heading_space(Slice text)
+{
+    U32 pos = 0;
+    while (pos < text.len() && (text[pos] == ' ' || text[pos] == '\t'))
+        pos++;
+    return text(pos);
+}
+
+int scan_int(Slice &buf)
+{
+    U32 pos = 0;
+    int val = 0, sign = 1;
+
+    if (buf.len() && buf[0] == '-') {
+        pos++;
+        sign = -1;
+    }
+
+    while (pos < buf.len() && isdigit(buf[pos]))
+        val = (val * 10) + (buf[pos++] - '0');
+
+    buf = buf(pos);
+    return val * sign;
+}

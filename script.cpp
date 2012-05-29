@@ -82,46 +82,21 @@ static void wait_anim_done()
 
 // ---- script low-level scanning
 
-static std::string to_string(const Slice &sl)
-{
-    Slice &s = (Slice &)sl;
-    return std::string(&s[0], &s[0] + s.len());
-}
-
 static Slice scan, line;
 static bool isInit;
 static int flow_counter;
 
-static bool islinespace(U8 ch)
-{
-    return ch == '\r' || ch == '\n';
-}
-
 static void scan_line()
 {
-    U32 pos = 0;
-
-    // find end of current line
-    pos = 0;
-    while (pos < scan.len() && !islinespace(scan[pos]))
-        pos++;
-    line = scan(0, pos);
-
-    // forward scan to start of next non-empty line
-    while (pos < scan.len() && islinespace(scan[pos]))
-        pos++;
-    scan = scan(pos);
+    line = chop_line(scan);
 }
 
 static void skip_whitespace()
 {
-    U32 pos = 0;
-    while (pos < line.len() && (line[pos] == ' ' || line[pos] == '\t'))
-        pos++;
+    line = eat_heading_space(line);
     // an end-of-line comment starts with ; and counts as white space
-    if (pos < line.len() && line[pos] == ';')
-        pos = line.len();
-    line = line(pos);
+    if (line.len() && line[0] == ';')
+        line = line(line.len());
 }
 
 static Slice scan_word()
