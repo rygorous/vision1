@@ -146,7 +146,7 @@ int Dialog::decode_and_follow(int state, const DialogString *&str)
             int dlglen = colon - target;
             assert(dlglen < ARRAY_COUNT(dlgname));
 
-            memcpy(dlgname, str->text, dlglen);
+            memcpy(dlgname, target, dlglen);
             dlgname[colon - target] = 0;
             load(dlgname);
 
@@ -412,7 +412,8 @@ static int handle_transition(Dialog &dlg, DialogVars &vars, int state)
         const DialogString *str = dlg.decode(item);
         if (str && vars.is_set(str->test_var)) {
             // found a valid transition, this is the ticket
-            vars.update(str->write_var);
+            if (str->write_var)
+                vars.update(str->write_var);
             return item;
         }
     }
@@ -446,12 +447,10 @@ static void parse_vb(DialogVars &vars, const Slice &vbfile)
 
         switch (mode) {
         case 'r': // read var
-            printf("vb: slot %d read var '%s'\n", index, to_string(line).c_str());
             vars.bool_vars[index] = get_var_int(to_string(line)) != 0;
             break;
 
         case 'v': // write var
-            printf("vb: slot %d write var '%s'\n", index, to_string(line).c_str());
             vars.bool_out[index] = get_var_int_ptr(to_string(line));
             break;
 
