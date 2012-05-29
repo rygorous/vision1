@@ -24,7 +24,6 @@ namespace {
     };
 
     class Dialog {
-    public:
         std::string charname;
         std::vector<int> dir;
         int root;
@@ -41,6 +40,9 @@ namespace {
         int get_root() const;
         int get_next(int item, int which) const;
         int decode_and_follow(int state, const DialogString *&str);
+        
+        void debug_dump(int item);
+        void debug_dump_all();
     };
 }
 
@@ -141,6 +143,32 @@ int Dialog::decode_and_follow(int state, const DialogString *&str)
     // no line
     str = nullptr;
     return state;
+}
+
+void Dialog::debug_dump(int item)
+{
+    printf("node     = %d\n", item);
+    printf("links    = [");
+    for (int i=0; i < 8; i++)
+        printf(" %d", dir[item+i]);
+    printf(" ]\n");
+
+    const DialogString *str = decode(item);
+    if (str) {
+        printf("var_index= %d\n", str->var_index);
+        for (int i=0; i < 2; i++)
+            printf("unk[%d]   = %d\n", i, str->unk[i]);
+        printf("label    = \"%.*s\"\n", LABEL_LEN, str->label);
+        printf("unk2     = %d\n", str->unk2);
+        printf("text     = \"%.*s\"\n", str->text_len, str->text);
+    }
+    printf("\n");
+}
+
+void Dialog::debug_dump_all()
+{
+    for (size_t i=5; i < dir.size(); i += 8)
+        debug_dump(i);
 }
 
 static void display_face(const char *charname)
@@ -325,26 +353,6 @@ static int handle_choices(Dialog &dlg, int state, int *hover)
     return choice;
 }
 
-static void describe_dialog_str(Dialog &dlg, int item)
-{
-    printf("links    = [");
-    for (int i=0; i < 8; i++)
-        printf(" %d", dlg.dir[item+i]);
-    printf(" ]\n");
-
-    const DialogString *str;
-    dlg.decode_and_follow(item, str);
-    if (str) {
-        printf("var_index= %d\n", str->var_index);
-        for (int i=0; i < 2; i++)
-            printf("unk[%d]   = %d\n", i, str->unk[i]);
-        printf("label    = %.*s\n", 5, str->label);
-        printf("unk2     = %d\n", str->unk2);
-        printf("text     = \"%.*s\"\n", str->text_len, str->text);
-    }
-    printf("\n");
-}
-
 void run_dialog(const char *charname, const char *dlgname)
 {
     SavedScreen saved_scr;
@@ -364,6 +372,12 @@ void run_dialog(const char *charname, const char *dlgname)
     Dialog dlg(charname);
     dlg.load(dlgname);
 
+    printf("===== START FULL DIALOG DUMP\n\n");
+
+    dlg.debug_dump_all();
+
+    printf("\n===== END FULL DIALOG DUMP\n\n");
+
     sprintf(filename, "chars/%s/%s.vb", charname, dlgname);
     Slice vars = try_read_xored(filename);
     print_hex("vars", vars);
@@ -379,9 +393,9 @@ void run_dialog(const char *charname, const char *dlgname)
         if (!state || !str)
             break;
 
-        describe_dialog_str(dlg, state);
+        dlg.debug_dump(state);
         for (int i=0; i < 5; i++)
-            describe_dialog_str(dlg, dlg.get_next(state, i));
+            dlg.debug_dump(dlg.get_next(state, i));
 
         say_line(mouth, str->text, str->text_len);
         int choice, hover = -1;
