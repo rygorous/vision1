@@ -179,12 +179,12 @@ class BigAnimation : public Animation { // .ani / .big files
     int w, h;
     int last_frame, wait_frames;
     int cur_frame, cur_tick;
-    bool reversed;
+    int flags;
 
     const U8 *get_frame(int frame) const;
 
 public:
-    BigAnimation(const char *filename, bool reverse_playback);
+    BigAnimation(const char *filename, int flags);
     virtual ~BigAnimation();
 
     virtual void tick();
@@ -201,10 +201,10 @@ const U8 *BigAnimation::get_frame(int frame) const
     return data + frame * frame_size;
 }
 
-BigAnimation::BigAnimation(const char *filename, bool reverse_playback)
+BigAnimation::BigAnimation(const char *filename, int flags)
     : data(nullptr), frame_size(0), posx(0), posy(0), w(0), h(0),
     last_frame(-1), wait_frames(1), cur_frame(0), cur_tick(0),
-    reversed(reverse_playback)
+    flags(flags)
 {
     // read file and header stuff
     Slice s = read_file(filename);
@@ -219,7 +219,6 @@ BigAnimation::BigAnimation(const char *filename, bool reverse_playback)
     h = s[8];
     last_frame = s[9];
     int fps = s[10];
-    reversed = reverse_playback;
 
     wait_frames = 70 / fps;
     frame_size = w * h;
@@ -255,6 +254,13 @@ void BigAnimation::tick()
     if (++cur_tick >= wait_frames) {
         cur_tick = 0;
         cur_frame++;
+        if (cur_frame > last_frame) {
+            if (flags & BA_PING_PONG) {
+                flags ^= BA_REVERSE;
+                cur_frame = 1;
+            } else if (flags & BA_LOOP)
+                cur_frame = 0;
+        }
     }
 }
 
@@ -263,7 +269,7 @@ void BigAnimation::render()
     if (cur_tick)
         return;
 
-    const U8 *frame = get_frame(reversed ? last_frame - cur_frame : cur_frame);
+    const U8 *frame = get_frame((flags & BA_REVERSE) ? last_frame - cur_frame : cur_frame);
     if (!frame)
         return;
 
@@ -281,9 +287,9 @@ void BigAnimation::rewind()
     cur_frame = cur_tick = 0;
 }
 
-Animation *new_big_anim(const char *filename, bool reverse_playback)
+Animation *new_big_anim(const char *filename, int flags)
 {
-    return new BigAnimation(filename, reverse_playback);
+    return new BigAnimation(filename, flags);
 }
 
 class MegaAnimation : public Animation { // .gra files

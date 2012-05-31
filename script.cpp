@@ -583,14 +583,14 @@ static void cmd_black()
 
 static void cmd_big()
 {
-    bool reverse = false;
+    int flags = 0;
     std::string filename = str_word() + ".ani";
     if (filename[0] == '!') {
-        reverse = true;
+        flags |= BA_REVERSE;
         filename = filename.substr(1);
     }
     
-    add_anim(new_big_anim(filename.c_str(), reverse));
+    add_anim(new_big_anim(filename.c_str(), flags));
 }
 
 static void cmd_megaanim()
@@ -661,7 +661,17 @@ static void cmd_print()
 
 static void cmd_ani()
 {
-    // TODO ani
+    int flags = BA_PING_PONG;
+    std::string filename = str_word() + ".ani";
+    int screen = int_value_word();
+
+    if (filename[0] == '!') {
+        flags |= BA_REVERSE;
+        filename = filename.substr(1);
+    }
+    
+    if (screen == 2) // TODO proper scroll support
+        add_anim(new_big_anim(filename.c_str(), flags), true);
 }
 
 static void cmd_back()
@@ -669,7 +679,7 @@ static void cmd_back()
     std::string filename = str_word();
     int slot = int_value_word();
 
-    if (slot == 1) { // TODO proper scroll support
+    if (slot == 2) { // TODO proper scroll support
         load_background(filename.c_str());
         set_palette();
     }

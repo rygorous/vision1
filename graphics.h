@@ -40,8 +40,15 @@ void set_palette();
 void set_palb_fade(int intensity);
 void load_background(const char *filename);
 
+// big anim flags
+enum {
+    BA_REVERSE      = 1,
+    BA_LOOP         = 2,
+    BA_PING_PONG    = 4,
+};
+
 Animation *new_color_cycle_anim(int first, int last, int delay, int dir);
-Animation *new_big_anim(const char *filename, bool reverse_playback);
+Animation *new_big_anim(const char *filename, int flags);
 Animation *new_mega_anim(const char *grafilename, const char *prefix, int first_frame,
     int last_frame, int posx, int posy, int delay, int scale, int flip);
 
