@@ -41,7 +41,7 @@ void init_vars()
     set_var_int("puzzle", 0);
     set_var_int("hot", 999);
     set_var_str("key$", "");
-    set_var_str("multi$", "TUORESAL");
+    set_var_str("multi$", "");
 }
 
 void dump_all_vars()

@@ -289,19 +289,24 @@ static bool eval_bool_expr1(Slice &tok)
     } else { // assume integers
         int lhs = int_value(tok);
         Slice op = scan_bool_tok();
-        int rhs = int_value(scan_bool_tok());
-        tok = scan_bool_tok();
+        if (op.len()) {
+            int rhs = int_value(scan_bool_tok());
+            tok = scan_bool_tok();
 
-        if (is_equal(op, "="))
-            return lhs == rhs;
-        else if (is_equal(op, "#"))
-            return lhs != rhs;
-        else if (is_equal(op, "<"))
-            return lhs < rhs;
-        else if (is_equal(op, ">"))
-            return lhs > rhs;
-        else
-            error_exit("unknown relational op (int): %s", to_string(op).c_str());
+            if (is_equal(op, "="))
+                return lhs == rhs;
+            else if (is_equal(op, "#"))
+                return lhs != rhs;
+            else if (is_equal(op, "<"))
+                return lhs < rhs;
+            else if (is_equal(op, ">"))
+                return lhs > rhs;
+            else
+                error_exit("unknown relational op (int): %s", to_string(op).c_str());
+        } else { // just a single variable
+            tok = op;
+            return lhs != 0;
+        }
     }
 
     return false;
@@ -561,7 +566,8 @@ static void cmd_stop()
 
 static void cmd_time()
 {
-    assert(0);
+    // TODO set in-game timer!
+    //assert(0);
 }
 
 static void cmd_load()

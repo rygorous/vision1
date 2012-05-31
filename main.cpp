@@ -182,6 +182,7 @@ static Slice current_script;
 static void init()
 {
     timeBeginPeriod(1);
+    srand(timeGetTime());
 
     init_vars();
     init_font();
