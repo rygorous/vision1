@@ -5,6 +5,8 @@
 
 void init_vars();
 
+void dump_all_vars(); // debug
+
 int get_var_int(const std::string &name);
 void set_var_int(const std::string &name, int value);
 int *get_var_int_ptr(const std::string &name); // this is ugly!

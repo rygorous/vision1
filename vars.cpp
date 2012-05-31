@@ -44,6 +44,15 @@ void init_vars()
     set_var_str("multi$", "TUORESAL");
 }
 
+void dump_all_vars()
+{
+    printf("ALL VARS:\n");
+    for (auto it = int_vars.begin(); it != int_vars.end(); ++it)
+        printf("  %s = %d\n", it->first.c_str(), it->second);
+    for (auto it = str_vars.begin(); it != str_vars.end(); ++it)
+        printf("  %s = %s\n", it->first.c_str(), it->second.c_str());
+}
+
 int get_var_int(const std::string &name)
 {
     auto iter = int_vars.find(canonical(name));

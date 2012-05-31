@@ -24,6 +24,20 @@ namespace {
         U8 text[1];             // 10; actually text_len bytes
     };
 
+    struct DialogVars {
+      static const int NUM_VARS = 64;
+      bool bool_vars[NUM_VARS];
+      int *bool_out[NUM_VARS];
+      int *add_vars[NUM_VARS];
+
+      bool bool_set[NUM_VARS];
+      int add_val[NUM_VARS];
+
+      DialogVars();
+      bool is_set(int which) const;
+      void update(int which);
+    };
+
     class Dialog {
         std::string charname;
         std::vector<int> dir;
@@ -40,24 +54,10 @@ namespace {
         int get_root() const;
         int get_next(int item, int which) const;
         const DialogString *decode(int item) const;
-        int decode_and_follow(int state, const DialogString *&str);
+        int decode_and_follow(int state, DialogVars *vars, const DialogString *&str);
         
         void debug_dump(int item);
         void debug_dump_all();
-    };
-
-    struct DialogVars {
-      static const int NUM_VARS = 64;
-      bool bool_vars[NUM_VARS];
-      int *bool_out[NUM_VARS];
-      int *add_vars[NUM_VARS];
-
-      bool bool_set[NUM_VARS];
-      int add_val[NUM_VARS];
-
-      DialogVars();
-      bool is_set(int which) const;
-      void update(int which);
     };
 }
 
@@ -129,12 +129,14 @@ const DialogString *Dialog::decode(int item) const
     return (offs == 0xffff) ? nullptr : (const DialogString *)&data[offs];
 }
 
-int Dialog::decode_and_follow(int state, const DialogString *&str)
+int Dialog::decode_and_follow(int state, DialogVars *vars, const DialogString *&str)
 {
     while (state) {
         str = decode(state);
         if (!str)
             break;
+        if (vars && str->write_var)
+            vars->update(str->write_var);
         if (str->text_len == 0 || str->text[0] != '^')
             return state;
 
@@ -376,7 +378,7 @@ static int handle_choices(Dialog &dlg, int state, int *hover)
     int cur_y = 145;
     for (int i=0; i < 5; i++) {
         const DialogString *str;
-        int option = dlg.decode_and_follow(dlg.get_next(state, i), str);
+        int option = dlg.decode_and_follow(dlg.get_next(state, i), nullptr, str);
         if (!str) {
             if (i == 0 && (mouse_button & 1)) // no choices - just wait for click
                 return option;
@@ -457,6 +459,7 @@ static void parse_vb(DialogVars &vars, const Slice &vbfile)
 
         case 'v': // write var
             vars.bool_out[index] = get_var_int_ptr(to_string(line));
+            vars.bool_set[index] = true; // TODO NOT support
             break;
 
         default:
@@ -500,7 +503,7 @@ void run_dialog(const char *charname, const char *dlgname)
         clean_scr.restore(); // reset everything to start
         
         const DialogString *str;
-        state = dlg.decode_and_follow(state, str);
+        state = dlg.decode_and_follow(state, &vars, str);
         if (!state || !str)
             break;
 

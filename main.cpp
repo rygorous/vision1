@@ -252,7 +252,7 @@ static void update()
     }
 #endif
 
-    run_script(current_script, false);
+    //run_script(current_script, false);
     game_frame();
 }
 

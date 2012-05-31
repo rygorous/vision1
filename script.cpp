@@ -82,9 +82,10 @@ static void wait_anim_done()
 
 // ---- script low-level scanning
 
-static Slice scan, line;
+static Slice source, scan, line;
 static bool isInit;
 static int flow_counter;
+static int nest_counter;
 
 static void scan_line()
 {
@@ -206,6 +207,18 @@ static bool has_prefix(const Slice &value, const char *str)
 static bool is_equal(const Slice &value, const char *str)
 {
     return has_prefix(value, str) && str[value.len()] == 0;
+}
+
+static bool is_equal(const Slice &a, const Slice &b)
+{
+    if (a.len() != b.len())
+        return false;
+
+    for (U32 pos=0; pos < a.len(); pos++)
+        if (tolower(a[pos]) != tolower(b[pos]))
+            return false;
+
+    return true;
 }
 
 // ---- boolean expressions
@@ -376,6 +389,8 @@ static bool bool_expr()
 
 static void cmd_if()
 {
+    nest_counter++;
+
     if (flow_counter == 0) { // normal execution
         bool cond = false;
         Slice l = line;
@@ -409,6 +424,7 @@ static void cmd_else()
 
 static void cmd_end()
 {
+    nest_counter--;
     if (flow_counter != 0)
         flow_counter--;
 }
@@ -518,7 +534,19 @@ static void cmd_wait()
 
 static void cmd_jump()
 {
-    assert(0);
+    Slice label = line;
+    scan = source;
+
+    printf("exec JUMP to '%s'\n", to_string(label).c_str());
+
+    while (scan.len()) {
+        scan_line();
+        skip_whitespace();
+        if (line.len() && line[0] == ':' && is_equal(line(1), label))
+            return; // found our label and scan is in the right place
+    }
+
+    error_exit("label '%s' not found in script!\n", to_string(label).c_str());
 }
 
 static void cmd_definelabel()
@@ -528,8 +556,7 @@ static void cmd_definelabel()
 
 static void cmd_stop()
 {
-    printf("STOP.\n");
-    // this is supposed to quit.
+    exit(1); // TODO this is not exactly a nice way to do it!
 }
 
 static void cmd_time()
@@ -696,9 +723,11 @@ static struct CommandDesc
 void run_script(Slice code, bool init)
 {
     // init scan
+    source = code;
     scan = code;
     isInit = init;
     flow_counter = 0;
+    nest_counter = 0;
 
     // scan script
     while (scan.len()) {
@@ -707,7 +736,17 @@ void run_script(Slice code, bool init)
         scan_line();
         skip_whitespace();
 
+        Slice orig_line = line;
+        //if (flow_counter == 0)
+        //    printf("sc: '%s'\n", to_string(line).c_str());
+
         Slice command = scan_word();
+
+        int noffs = 0;
+        if (has_prefix(command, "el") || has_prefix(command, "en"))
+            noffs = -1;
+        printf("%c%*s%s\n", flow_counter ? '-' : ' ', 2*(nest_counter+noffs), "", to_string(orig_line).c_str());
+
         int i;
         for (i=0; i < ARRAY_COUNT(commands); i++) {
             int j=0;
