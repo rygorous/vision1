@@ -263,8 +263,8 @@ int main(int argc, char **argv)
 
     init();
 
-    game_command("welt init");
-    //game_command("welt 08360900");
+    //game_command("welt init");
+    game_command("welt 08360900");
 
     for (;;) {
         if (!msgloop())

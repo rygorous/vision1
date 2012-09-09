@@ -403,7 +403,7 @@ static void cmd_if()
         if (has_prefix(line, "init"))
             cond = isInit;
         else if (has_prefix(line, "hot"))
-            cond = need_int_literal(line(3)) == 2; // TODO real impl!
+            cond = need_int_literal(line(3)) == -1; // TODO real impl!
         else if (has_prefix(line, "cnt"))
             cond = need_int_literal(line(3)) == 1234; // TODO real impl!
         else if (has_prefix(line, "key"))
@@ -448,6 +448,12 @@ static void cmd_add()
         set_var_str(varname, get_var_str(varname) + str_value_word());
     else
         set_var_int(varname, get_var_int(varname) + int_value_word());
+}
+
+static void cmd_sub()
+{
+    std::string varname = str_word();
+    set_var_int(varname, get_var_int(varname) - int_value_word());
 }
 
 static void cmd_off()
@@ -685,12 +691,23 @@ static void cmd_back()
 
 static void cmd_scroll()
 {
-    // TODO implement
+    printf("SCROLL %s\n", to_string(line).c_str());
 }
 
 static void cmd_start()
 {
-    // TODO implement
+    printf("START %s\n", to_string(line).c_str());
+}
+
+static void cmd_pointer()
+{
+    printf("POINTER %s\n", to_string(line).c_str());
+}
+
+static void cmd_killhotspot()
+{
+    int which = int_value_word();
+    printf("KILLHOTSPOT %d\n", which);
 }
 
 static struct CommandDesc
@@ -719,16 +736,19 @@ static struct CommandDesc
     "if",           2,  true,   cmd_if,
     "jump",         1,  false,  cmd_jump,
     "keyenable",    2,  false,  cmd_keyenable,
+    "killhotspot",  2,  false,  cmd_killhotspot,
     "load",         2,  false,  cmd_load,
     "megaani",      2,  false,  cmd_megaanim,
     "off",          2,  false,  cmd_off,
     "pic",          2,  false,  cmd_pic,
+    "pointer",      2,  false,  cmd_pointer,
     "print",        2,  false,  cmd_print,
     "scroll",       2,  false,  cmd_scroll,
     "set",          2,  false,  cmd_set,
     "song",         2,  false,  cmd_song,
     "start",        3,  false,  cmd_start,
     "stop",         3,  false,  cmd_stop,
+    "sub",          2,  false,  cmd_sub,
     "time",         2,  false,  cmd_time,
     "random",       2,  false,  cmd_random,
     "wait",         2,  false,  cmd_wait,
