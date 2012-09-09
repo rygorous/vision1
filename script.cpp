@@ -421,8 +421,8 @@ static void cmd_if()
 
 static void cmd_else()
 {
-    if (flow_counter == 1)
-        flow_counter = 0;
+    if (flow_counter <= 1)
+        flow_counter = !flow_counter;
 }
 
 static void cmd_end()
