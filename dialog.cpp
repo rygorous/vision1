@@ -309,7 +309,7 @@ void Dialog::debug_dump_all()
         debug_dump(i);
 }
 
-static void display_face(const char *charname)
+static void display_face(const char *charname, bool flipped, int scale)
 {
     char filename[128];
     sprintf(filename, "chars/%s/face.frz", charname);
@@ -319,7 +319,21 @@ static void display_face(const char *charname)
     // but keep topmost 8 as they are (used for text)
     memcpy(&palette_a[128], &s[128*sizeof(PalEntry)], 0x78*sizeof(PalEntry));
     memcpy(&palette_b[128], &s[128*sizeof(PalEntry)], 0x78*sizeof(PalEntry));
-    decode_delta(vga_screen, &s[256*sizeof(PalEntry)]);
+
+    const U8 *faceimg = &s[256*sizeof(PalEntry)];
+
+    // TODO this is currently totally broken in the dialogs that use it.
+    if (!flipped) {
+        if (scale == 1)
+            decode_delta_gfx(vga_screen, 0, 0, faceimg, 1, false);
+        else if (scale == 2)
+            decode_delta_gfx(vga_screen, 76, 27, faceimg, 2, false);
+    } else {
+        if (scale == 1)
+            decode_delta_gfx(vga_screen, 319, 0, faceimg, 1, true);
+        else if (scale == 2)
+            decode_delta_gfx(vga_screen, 0, 0, faceimg, 2, true);
+    }
     set_palette();
 }
 
@@ -437,7 +451,7 @@ static void say_line_callback(void *user, size_t start, size_t end)
     }
 }
 
-static void say_line(Animation *mouth, const U8 *text, int len)
+static void say_line(Animation *mouth, const U8 *text, int len, bool flipped, int scale)
 {
     int x = 4, y = 42;
     print_text_linebreak(bigfont, text, len, x, y, x + 144, say_line_callback, mouth);
@@ -495,13 +509,19 @@ void run_dialog(const char *charname, const char *dlgname)
 {
     SavedScreen saved_scr;
 
-    bool exclam = false;
+    bool flipped = false;
+    int scale = 1;
     if (charname[0] == '!') {
-        exclam = true;
+        flipped = true;
         charname++;
     }
 
-    display_face(charname);
+    if (dlgname[0] == '2') {
+        scale = 2;
+        dlgname++;
+    }
+
+    display_face(charname, flipped, scale);
 
     char filename[128];
     sprintf(filename, "chars/%s/sprech.ani", charname);
@@ -529,7 +549,7 @@ void run_dialog(const char *charname, const char *dlgname)
         //for (int i=0; i < 5; i++)
         //    dlg.debug_dump(dlg.get_next(state, i));
 
-        say_line(mouth, str->text, str->text_len);
+        say_line(mouth, str->text, str->text_len, flipped, scale);
         int choice, hover = -1;
         while ((choice = handle_choices(dlg, state, &hover)) == -1)
             game_frame();
