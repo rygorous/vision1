@@ -177,8 +177,6 @@ static void createWindow(HINSTANCE hInstance)
 		error_exit("CreateWindow failed!\n");
 }
 
-static Slice current_script;
-
 static void init()
 {
     timeBeginPeriod(1);
@@ -208,10 +206,6 @@ static void init()
     // 00 = accessible
     // 07 = skip this column
     // 80 = blocked
-
-    //current_script = read_xored("data/init.par");
-    current_script = read_xored("data/08360900.par");
-    run_script(current_script, true);
 }
 
 static void shutdown()
@@ -220,46 +214,6 @@ static void shutdown()
     shutdown_mouse();
 
     timeEndPeriod(1);
-}
-
-static void update()
-{
-#if 1
-    static int last_tick;
-    static int frame = 0;
-
-    int now = GetTickCount();
-    if (now - last_tick >= 100) {
-        last_tick = now;
-
-        // in grafix/:
-        // wand01.gra: "set pieces" for 3d view
-        // person*.gra: characters for 3d view
-        // charset.gra: characters
-        // gmod01.gra: decorations for 3d view 1
-        // gmod02.gra: decorations for 3d view 2
-        // newspics.gra: pics for infotimes
-
-        //display_pic("grafix/braun.pic");
-        /*static const char *bkgnd = "grafix/braun.pic";
-        static const char *grafile = "grafix/wand01.gra";
-
-        if (!display_gra(grafile, frame)) {
-            frame = 0;
-            //display_pic(bkgnd);
-            display_gra(grafile, frame);
-        }*/
-
-        frame++;
-    }
-#endif
-
-    //run_script(current_script, false);
-    game_frame();
-}
-
-static void render()
-{
 }
 
 static bool msgloop()
@@ -282,7 +236,6 @@ void frame()
     static U32 framelen = 14; // TODO make better!
     static U32 framestart = 0;
 
-    // TODO mouse cursor handling here
     if (!msgloop())
         exit(1);
 
@@ -310,14 +263,15 @@ int main(int argc, char **argv)
 
     init();
 
+    game_command("welt init");
+    //game_command("welt 08360900");
+
     for (;;) {
         if (!msgloop())
             break;
-        else {
-            update();
-            render();
-            frame();
-        }
+
+        game_script_tick();
+        game_frame();
     }
 
     shutdown();

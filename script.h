@@ -4,7 +4,8 @@
 class Slice;
 
 bool eval_bool_expr(const Slice &expr);
+void game_command(const char *cmd);
 void game_frame();
-void run_script(Slice code, bool init);
+void game_script_tick();
 
 #endif

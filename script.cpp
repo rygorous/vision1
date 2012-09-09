@@ -56,16 +56,6 @@ static void tick_anim()
     }
 }
 
-void game_frame()
-{
-    render_anim();
-    tick_anim();
-
-    // time handling etc. should also go here
-
-    frame();
-}
-
 static bool are_anims_done()
 {
     for (auto it = animations.begin(); it != animations.end(); ++it)
@@ -194,6 +184,14 @@ static std::string str_value_word()
 static std::string str_word()
 {
     return to_string(scan_word());
+}
+
+static bool has_prefix(const std::string &value, const char *str)
+{
+    size_t pos = 0;
+    while (pos < value.size() && str[pos] && tolower(value[pos]) == str[pos])
+        pos++;
+    return str[pos] == 0;
 }
 
 static bool has_prefix(const Slice &value, const char *str)
@@ -478,8 +476,7 @@ static void cmd_pic()
 static void cmd_keyenable()
 {
     int flag = int_value_word();
-    // TODO use this :)
-    flag = flag;
+    printf("keyena: set to %d\n", flag);
 }
 
 static void cmd_song()
@@ -568,11 +565,12 @@ static void cmd_time()
 {
     // TODO set in-game timer!
     //assert(0);
+    printf("TIME %s\n", to_string(line).c_str());
 }
 
 static void cmd_load()
 {
-    //assert(0);
+    game_command(to_string(line).c_str());
 }
 
 static void cmd_black()
@@ -646,17 +644,17 @@ static void cmd_grafix()
 
 static void cmd_def()
 {
-    // TODO def
+    printf("DEF %s\n", to_string(line).c_str());
 }
 
 static void cmd_hot()
 {
-    // TODO hot
+    printf("HOT %s\n", to_string(line).c_str());
 }
 
 static void cmd_print()
 {
-    // TODO print
+    printf("PRINT %s\n", to_string(line).c_str());
 }
 
 static void cmd_ani()
@@ -670,7 +668,7 @@ static void cmd_ani()
         filename = filename.substr(1);
     }
     
-    if (screen == 2) // TODO proper scroll support
+    if (screen == 1) // TODO proper scroll support
         add_anim(new_big_anim(filename.c_str(), flags), true);
 }
 
@@ -679,7 +677,7 @@ static void cmd_back()
     std::string filename = str_word();
     int slot = int_value_word();
 
-    if (slot == 2) { // TODO proper scroll support
+    if (slot == 1) { // TODO proper scroll support
         load_background(filename.c_str());
         set_palette();
     }
@@ -736,7 +734,7 @@ static struct CommandDesc
     "wait",         2,  false,  cmd_wait,
 };
 
-void run_script(Slice code, bool init)
+static void run_script(Slice code, bool init)
 {
     // init scan
     source = code;
@@ -761,7 +759,7 @@ void run_script(Slice code, bool init)
         int noffs = 0;
         if (has_prefix(command, "el") || has_prefix(command, "en"))
             noffs = -1;
-        printf("%c%*s%s\n", flow_counter ? '-' : ' ', 2*(nest_counter+noffs), "", to_string(orig_line).c_str());
+        //printf("%c%*s%s\n", flow_counter ? '-' : ' ', 2*(nest_counter+noffs), "", to_string(orig_line).c_str());
 
         int i;
         for (i=0; i < ARRAY_COUNT(commands); i++) {
@@ -783,3 +781,38 @@ void run_script(Slice code, bool init)
     }
 }
 
+// ---- outer logic
+
+static Slice s_script;
+static std::string s_command;
+
+void game_command(const char *cmd)
+{
+    assert(s_command.empty());
+    s_command = cmd;
+}
+
+void game_frame()
+{
+    render_anim();
+    tick_anim();
+
+    // time handling etc. should also go here
+
+    frame();
+}
+
+void game_script_tick()
+{
+    if (!s_command.empty()) {
+        if (has_prefix(s_command, "welt ")) {
+            std::string filename = "data/" + s_command.substr(5) + ".par";
+            s_command.clear();
+
+            s_script = read_xored(filename.c_str());
+            run_script(s_script, true);
+        } else
+            error_exit("bad game command: \"%s\"", s_command);
+    } else
+        run_script(s_script, false);
+}
