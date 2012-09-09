@@ -1,5 +1,6 @@
 #include "graphics.h"
 #include "util.h"
+#include "script.h"
 #include <algorithm>
 #include <assert.h>
 #include <stdio.h>
@@ -457,6 +458,18 @@ static void decode_mix(MixItem *items, int count, const char *vbFilename)
 
     // library
     Slice libFile = read_file(PascalStr(items[1].pasNameStr));
+    Slice vbFile = try_read_xored(vbFilename);
+    int itemCode = 0;
+
+    if (vbFile) {
+        print_hex("MIX vbFile", vbFile);
+        
+        Slice line = chop_line(vbFile);
+        if (line[0] == '#') {
+            itemCode = scan_int(line(1));
+            printf("itemCode %d\n", itemCode);
+        }
+    }
 
     // items
     for (int i=2; i < count; i++) {
@@ -468,7 +481,9 @@ static void decode_mix(MixItem *items, int count, const char *vbFilename)
             continue;
         }
 
-        // TODO evaluate VB file!
+        Slice vbLine = chop_line(vbFile);
+        if (vbLine.len() && !eval_bool_expr(vbLine))
+            continue;
 
         int x = items[i].para1l + (items[i].para1h << 8);
         int y = items[i].para2;
@@ -478,9 +493,6 @@ static void decode_mix(MixItem *items, int count, const char *vbFilename)
         else if (type == 8) // RLE
             decode_rle(vga_screen + y*WIDTH + x, &libFile[offs]);
     }
-
-    /*Conditions cond;
-    cond.parse_vb(try_read_xored(vbFilename));*/
 }
 
 void load_background(const char *filename)

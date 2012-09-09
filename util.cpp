@@ -444,8 +444,10 @@ Slice chop_line(Slice &buf)
         pos++;
     Slice line = buf(0, pos);
 
-    // skip to start of next non-empty line
-    while (pos < buf.len() && islinespace(buf[pos]))
+    // find LF to find start of next line
+    while (pos < buf.len() && buf[pos] != '\n')
+        pos++;
+    if (pos < buf.len())
         pos++;
     buf = buf(pos);
 

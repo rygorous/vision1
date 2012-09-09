@@ -206,6 +206,19 @@ static void init()
     // 00 = accessible
     // 07 = skip this column
     // 80 = blocked
+
+    Slice s = read_file("chars/silizian/face.frz");
+
+    /*// use top 128 palette entries from .frz
+    // but keep topmost 8 as they are (used for text)
+    memcpy(&palette_a[128], &s[128*sizeof(PalEntry)], 0x78*sizeof(PalEntry));
+    memcpy(&palette_b[128], &s[128*sizeof(PalEntry)], 0x78*sizeof(PalEntry));
+
+    const U8 *faceimg = &s[256*sizeof(PalEntry)];
+    decode_delta_gfx(vga_screen, 0, 24, faceimg, 2, true);
+    set_palette();
+    for (int i=0; i < 10000; i++)
+        game_frame();*/
 }
 
 static void shutdown()
@@ -264,8 +277,7 @@ int main(int argc, char **argv)
     init();
 
     //game_command("welt init");
-    //game_command("welt 08360900");
-    game_command("welt dextras");
+    game_command("welt 08360900");
 
     for (;;) {
         if (!msgloop())
