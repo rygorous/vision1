@@ -479,23 +479,8 @@ static void decode_mix(MixItem *items, int count, const char *vbFilename)
             decode_rle(vga_screen + y*WIDTH + x, &libFile[offs]);
     }
 
-    /*
-    int vbSize;
-    if (U8 *vbBytes = try_read_file(vbFilename, &vbSize)) {
-        int pos;
-        decrypt(vbBytes, vbSize, &pos);
-        while (pos < vbSize) {
-            char command[101], *p = command;
-
-            // get next command
-            while (pos < vbSize && vbBytes[pos] >= ' ') {
-
-            }
-            pos += 2; // skip CRLF
-        }
-
-        delete[] vbBytes;
-    }*/
+    /*Conditions cond;
+    cond.parse_vb(try_read_xored(vbFilename));*/
 }
 
 void load_background(const char *filename)
