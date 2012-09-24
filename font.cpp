@@ -81,7 +81,7 @@ private:
     void print_glyph(int x, int y, int glyph) const;
     static int glyph_index(U8 ch);
 
-    GfxBlock gfx;
+    PixelSlice gfx;
     const U8 *widths;
     U8 pal[16];
 };
@@ -90,8 +90,8 @@ private:
 BitmapFont::BitmapFont(const char *filename, const U8 *widths, const U8 *palette)
     : widths(widths)
 {
-    gfx.load(filename);
-    gfx.resize(320, gfx.h);
+    gfx = load_rle_pixels(filename);
+    gfx = gfx.make_resized(320, gfx.height());
     memcpy(pal, palette, sizeof(pal));
 }
 
@@ -127,7 +127,7 @@ void BitmapFont::print_glyph(int posx, int posy, int glyph) const
     int x1 = std::min(16, WIDTH - posx);
     int y1 = std::min(10, HEIGHT - posy);
 
-    const U8 *srcp = gfx.pixels + glyph_offsets[glyph] + y0*gfx.w;
+    const U8 *srcp = gfx.row(y0) + glyph_offsets[glyph];
     int offset = (posy + y0)*WIDTH + posx;
 
     for (int y=y0; y < y1; y++) {
@@ -139,7 +139,7 @@ void BitmapFont::print_glyph(int posx, int posy, int glyph) const
             }
         }
 
-        srcp += gfx.w;
+        srcp += gfx.width();
         offset += WIDTH;
     }
 }

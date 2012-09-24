@@ -9,42 +9,149 @@
 
 Palette palette_a, palette_b;
 
-GfxBlock::GfxBlock()
+// ---- pixel slices
+
+struct PixelBuffer
 {
-    pixels = nullptr;
-    w = h = 0;
+    U8 *pixels;
+    U32 nrefs;
+
+    PixelBuffer(int w, int h)
+    {
+        assert(w >= 0 && h >= 0);
+        pixels = new U8[w*h];
+        nrefs = 0;
+        
+        if (!pixels)
+            error_exit("out of memory");
+    }
+
+    ~PixelBuffer()
+    {
+        delete[] pixels;
+    }
+
+    static void ref(PixelBuffer *x)     { if (x) x->nrefs++; }
+    static void unref(PixelBuffer *x)   { if (x && --x->nrefs == 0) delete x; }
+};
+
+PixelSlice::PixelSlice()
+    : buf(0), pixels(0), w(0), h(0), stride(0)
+{
 }
 
-GfxBlock::~GfxBlock()
+PixelSlice::PixelSlice(PixelBuffer *buf, int w, int h)
+    : buf(buf), pixels(buf->pixels), w(w), h(h), stride(w)
 {
-    delete[] pixels;
+    PixelBuffer::ref(buf);
 }
 
-void GfxBlock::load(const char *filename)
+PixelSlice::PixelSlice(const PixelSlice &x)
+    : buf(x.buf), pixels(x.pixels), w(x.w), h(x.h), stride(x.stride)
 {
-    delete[] pixels;
-
-    Slice s = read_file(filename);
-    w = little_u16(&s[0]);
-    h = little_u16(&s[2]);
-    pixels = new U8[w*h];
-    decode_rle(pixels, &s[4]);
+    PixelBuffer::ref(buf);
 }
 
-void GfxBlock::resize(int neww, int newh)
+PixelSlice::~PixelSlice()
 {
-    if (!pixels)
+    PixelBuffer::unref(buf);
+}
+
+PixelSlice PixelSlice::make(int w, int h)
+{
+    return PixelSlice(new PixelBuffer(w, h), w, h);
+}
+
+PixelSlice PixelSlice::black(int w, int h)
+{
+    PixelSlice p = make(w, h);
+    memset(p.row(0), 0, w*h);
+    return p;
+}
+
+PixelSlice &PixelSlice::operator =(const PixelSlice &x)
+{
+    PixelBuffer::ref(x.buf);
+    PixelBuffer::unref(buf);
+    buf = x.buf;
+    pixels = x.pixels;
+    w = x.w;
+    h = x.h;
+    stride = x.stride;
+    return *this;
+}
+
+const PixelSlice PixelSlice::slice(int x0, int y0, int x1, int y1) const
+{
+    if (x1 < x0 || y1 < y0)
+        return PixelSlice();
+
+    x0 = std::min(x0, w);
+    x1 = std::min(x1, w);
+    y0 = std::min(y0, h);
+    y1 = std::min(y1, h);
+
+    PixelSlice s(*this);
+    s.pixels += y0 * s.stride + x0;
+    s.w = x1 - x0;
+    s.h = y1 - y0;
+    return s;
+}
+
+PixelSlice PixelSlice::make_resized(int neww, int newh)
+{
+    PixelSlice s = black(neww, newh);
+    blit(s, 0, 0, *this);
+    return s;
+}
+
+static bool clipblit(Rect *sr, int dx, int dy, const PixelSlice &dest, const PixelSlice &src)
+{
+    // in source rect space
+    sr->x0 = std::max(-dx, 0);
+    sr->y0 = std::max(-dy, 0);
+    sr->x1 = std::min(src.width(), dest.width() - dx);
+    sr->y1 = std::min(src.height(), dest.height() - dy);
+    return sr->x0 < sr->x1 && sr->y0 < sr->y1;
+}
+
+void blit(PixelSlice &dest, int dx, int dy, const PixelSlice &src)
+{
+    Rect sr;
+    if (!clipblit(&sr, dx, dy, dest, src))
         return;
 
-    U8 *newpix = new U8[neww*newh];
-    memset(newpix, 0, neww*newh);
-    for (int y=0; y < MIN(h, newh); y++)
-        memcpy(newpix + y*neww, pixels + y*w, MIN(w, neww));
+    int w = sr.x1 - sr.x0;
+    for (int sy=sr.y0; sy < sr.y1; sy++)
+        memcpy(dest.ptr(dx+sr.x0, dy+sy), src.ptr(sr.x0, sy), w);
+}
 
-    delete[] pixels;
-    pixels = newpix;
-    w = neww;
-    h = newh;
+void blit_transparent(PixelSlice &dest, int dx, int dy, const PixelSlice &src)
+{
+    Rect sr;
+    if (!clipblit(&sr, dx, dy, dest, src))
+        return;
+
+    int w = sr.x1 - sr.x0;
+    for (int sy=sr.y0; sy < sr.y1; sy++) {
+        U8 *d = dest.ptr(dx+sr.x0, dy+sy);
+        const U8 *s = src.ptr(sr.x0, sy);
+
+        for (int x=0; x < w; x++) {
+            if (s[x])
+                d[x] = s[x];
+        }
+    }
+}
+
+// ---- functions
+
+PixelSlice load_rle_pixels(const char *filename)
+{
+    Slice s = read_file(filename);
+    PixelSlice p = PixelSlice::make(little_u16(&s[0]), little_u16(&s[2]));
+    decode_rle(p.row(0), &s[4]);
+    return p;
 }
 
 void fix_palette(Palette pal)
@@ -459,16 +566,12 @@ static void decode_mix(MixItem *items, int count, const char *vbFilename)
     // library
     Slice libFile = read_file(PascalStr(items[1].pasNameStr));
     Slice vbFile = try_read_xored(vbFilename);
-    int itemCode = 0;
+    int hotIndex = 0;
 
     if (vbFile) {
-        print_hex("MIX vbFile", vbFile);
-        
         Slice line = chop_line(vbFile);
-        if (line[0] == '#') {
-            itemCode = scan_int(line(1));
-            printf("itemCode %d\n", itemCode);
-        }
+        if (line[0] == '#')
+            hotIndex = scan_int(line(1));
     }
 
     // items
@@ -482,16 +585,19 @@ static void decode_mix(MixItem *items, int count, const char *vbFilename)
         }
 
         Slice vbLine = chop_line(vbFile);
-        if (vbLine.len() && !eval_bool_expr(vbLine))
-            continue;
+        if (vbLine.len() == 0 || eval_bool_expr(vbLine)) {
+            int x = items[i].para1l + (items[i].para1h << 8);
+            int y = items[i].para2;
 
-        int x = items[i].para1l + (items[i].para1h << 8);
-        int y = items[i].para2;
+            if (type == 5) // delta
+                decode_delta_gfx(vga_screen, x, y, &libFile[offs], items[i].para3, items[i].flipX != 0);
+            else if (type == 8) // RLE
+                decode_rle(vga_screen + y*WIDTH + x, &libFile[offs]);
+        } else {
+            // TODO disable hotspot no. hotIndex
+        }
 
-        if (type == 5) // delta
-            decode_delta_gfx(vga_screen, x, y, &libFile[offs], items[i].para3, items[i].flipX != 0);
-        else if (type == 8) // RLE
-            decode_rle(vga_screen + y*WIDTH + x, &libFile[offs]);
+        hotIndex++;
     }
 }
 

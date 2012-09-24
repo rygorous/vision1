@@ -1,5 +1,6 @@
 #include "mouse.h"
 #include "util.h"
+#include "graphics.h"
 #include <algorithm>
 #include <stdio.h>
 #include <string.h>

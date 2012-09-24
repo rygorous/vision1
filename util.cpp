@@ -28,8 +28,8 @@ struct Buffer
         delete[] data;
     }
 
-    void ref()      { if (this) nrefs++; }
-    void unref()    { if (this && --nrefs == 0) delete this; }
+    static void ref(Buffer *x)      { if (x) x->nrefs++; }
+    static void unref(Buffer *x)    { if (x && --x->nrefs == 0) delete x; }
 };
 
 Slice::Slice()
@@ -40,18 +40,18 @@ Slice::Slice()
 Slice::Slice(Buffer *b, U32 len)
     : buf(b), ptr(b->data), length(len)
 {
-    buf->ref();
+    Buffer::ref(buf);
 }
 
 Slice::Slice(const Slice &x)
     : buf(x.buf), ptr(x.ptr), length(x.length)
 {
-    buf->ref();
+    Buffer::ref(buf);
 }
 
 Slice::~Slice()
 {
-    buf->unref();
+    Buffer::unref(buf);
 }
 
 Slice Slice::make(U32 nbytes)
@@ -61,8 +61,8 @@ Slice Slice::make(U32 nbytes)
 
 Slice &Slice::operator =(const Slice &x)
 {
-    x.buf->ref();
-    buf->unref();
+    Buffer::ref(x.buf);
+    Buffer::unref(buf);
     buf = x.buf;
     ptr = x.ptr;
     length = x.length;
