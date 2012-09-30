@@ -691,9 +691,8 @@ static void decode_mix(MixItem *items, int count, const char *vbFilename)
                 blit_transparent_shrink(pic_window, x, y, load_delta_pixels(libFile(offs)), items[i].para3, items[i].flipX != 0);
             else if (type == 8) // RLE
                 blit(pic_window, x, y, load_rle_with_header(libFile(offs)));
-        } else {
-            // TODO disable hotspot no. hotIndex
-        }
+        } else
+            game_hotspot_disable(hotIndex);
 
         hotIndex++;
     }

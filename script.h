@@ -10,5 +10,6 @@ void game_script_tick();
 void game_shutdown();
 
 const unsigned char *game_get_screen_row(int y);
+void game_hotspot_disable(int which); // TODO do this differently
 
 #endif

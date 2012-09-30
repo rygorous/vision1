@@ -17,8 +17,9 @@ namespace {
     static const struct CursorDesc {
         const char *filename;
         int hotx, hoty;
+        char code;
     } cursor_desc[] = {
-#define X(id, filename, hotx, hoty) { filename, hotx, hoty },
+#define X(id, code, filename, hotx, hoty) { filename, hotx, hoty, code },
         MOUSE_CURSORS
 #undef X
     };
@@ -53,6 +54,16 @@ void render_mouse_cursor(U32 *dest, const U32 *pal)
                 dest[offs + y*width + x] = pal[cursor.img[y][x]];
         }
     }
+}
+
+MouseCursor get_mouse_cursor_from_char(char ch)
+{
+    MouseCursor ret = MC_NULL;
+    ch = tolower(ch);
+    for (int i=0; i < ARRAY_COUNT(cursor_desc); i++)
+        if (cursor_desc[i].code == ch)
+            return (MouseCursor)i;
+    return ret;
 }
 
 void init_mouse()

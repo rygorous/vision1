@@ -84,14 +84,14 @@ static PixelSlice scroll_window;
 static int scroll_x, scroll_x_min, scroll_x_max;
 static bool scroll_auto;
 
-static void disable_scroll()
+static void scroll_disable()
 {
     scroll_window = PixelSlice();
     scroll_x = 0;
     scroll_x_min = scroll_x_max = 0;
 }
 
-static void enable_scroll()
+static void scroll_enable()
 {
     if (scroll_window)
         return;
@@ -111,12 +111,85 @@ static void scroll_tick()
         scroll_x = std::min(scroll_x + 1, scroll_x_max);
 }
 
+// ---- hot spots
+
+static PixelSlice hotspots;
+
+static void hotspot_load(const char *filename, int screen)
+{
+    PixelSlice raw_img = load_rle_with_header(read_file(filename));
+
+    // hotspot images have a weird layout; reshuffle them.
+    assert(raw_img.width() == 320);
+    assert(raw_img.height() == 50);
+
+    PixelSlice img = PixelSlice::make(160, 56);
+    for (int y=0; y < 56; y++) {
+        int srcy = y + SCROLL_WINDOW_Y0 / 2;
+        memcpy(img.row(y), raw_img.ptr((srcy & 1) * 160, srcy >> 1), 160);
+    }
+
+    // save it!
+    if (screen == 0)
+        hotspots = img.clone();
+    else {
+        if (hotspots.width() != SCROLL_WINDOW_WIDTH / 2)
+            hotspots = PixelSlice::black(SCROLL_WINDOW_WIDTH / 2, img.height());
+
+        blit(hotspots, (screen - 1) * (SCROLL_SCREEN_WIDTH / 2), 0, img);
+    }
+}
+
+static void hotspot_reset()
+{
+    hotspots = PixelSlice();
+}
+
+static int hotspot_get(int mouse_x, int mouse_y)
+{
+    int hot_x = (mouse_x + scroll_x) / 2;
+    int hot_y = (mouse_y - SCROLL_WINDOW_Y0) / 2;
+    if (hot_x >= 0 && hot_y >= 0 && hot_x < hotspots.width() && hot_y < hotspots.height())
+        return *hotspots.ptr(hot_x, hot_y);
+    else
+        return 0;
+}
+
+static void hotspot_kill(int which)
+{
+    for (int y=0; y < hotspots.height(); y++) {
+        U8 *p = hotspots.row(y);
+        for (int x=0; x < hotspots.width(); x++)
+            if (p[x] == which)
+                p[x] = 0;
+    }
+}
+
+// ---- cursor handling
+
+static MouseCursor hot2cursor[256];
+
+static void cursor_reset()
+{
+    hot2cursor[0] = MC_NORMAL;
+    for (int i=1; i < ARRAY_COUNT(hot2cursor); i++)
+        hot2cursor[i] = MC_NULL;
+}
+
+static void cursor_define(int which, char code)
+{
+    if (which >= 1 && which < ARRAY_COUNT(hot2cursor))
+        hot2cursor[which] = get_mouse_cursor_from_char(code);
+}
+
 // ---- script low-level scanning
 
 static Slice source, scan, line;
 static bool isInit;
 static int flow_counter;
 static int nest_counter;
+
+static char cursors[256];
 
 static void scan_line()
 {
@@ -558,7 +631,7 @@ static void cmd_exec()
         std::string charname = str_word();
         std::string dlgname = str_word();
 
-        disable_scroll();
+        scroll_disable();
         run_dialog(charname.c_str(), dlgname.c_str());
     } else {
         printf("don't know how to exec: ");
@@ -694,12 +767,20 @@ static void cmd_grafix()
 
 static void cmd_def()
 {
-    printf("DEF %s\n", to_string(line).c_str());
+    int which = int_value_word();
+    std::string code = str_word();
+    if (!code.empty()) {
+        printf("  hot %d=%c\n", which, code[0]);
+        cursor_define(which, code[0]);
+    }
 }
 
 static void cmd_hot()
 {
-    printf("HOT %s\n", to_string(line).c_str());
+    std::string filename = str_word();
+    int screen = int_value_word();
+
+    hotspot_load(filename.c_str(), screen);
 }
 
 static void cmd_print()
@@ -737,7 +818,7 @@ static void cmd_back()
     set_palette();
 
     if (slot != 0) {
-        enable_scroll();
+        scroll_enable();
         blit(scroll_window, (slot - 1) * SCROLL_SCREEN_WIDTH, 0, vga_screen);
     }
 }
@@ -764,6 +845,7 @@ static void cmd_pointer()
 static void cmd_killhotspot()
 {
     int which = int_value_word();
+    hotspot_kill(which);
     printf("KILLHOTSPOT %d\n", which);
 }
 
@@ -875,9 +957,33 @@ void game_frame()
     tick_anim();
     scroll_tick();
 
+    int hot = hotspot_get(mouse_x, mouse_y);
+    set_mouse_cursor(hot2cursor[hot]);
+
+#if 0 // hotspot debug
+    PixelSlice target = scroll_window ? scroll_window : vga_screen;
+    int x0 = scroll_window ? scroll_x : 0;
+
+    for (int y=SCROLL_WINDOW_Y0; y < SCROLL_WINDOW_Y1; y++) {
+        for (int x=0; x < 320; x++) {
+            int hot = hotspot_get(x, y);
+            if (hot)
+                *target.ptr(x + x0, y) = 1;
+        }
+    }
+#endif
+
     // time handling etc. should also go here
 
     frame();
+}
+
+static void game_reset()
+{
+    clear_anim();
+    scroll_disable();
+    hotspot_reset();
+    cursor_reset();
 }
 
 void game_script_tick()
@@ -888,7 +994,8 @@ void game_script_tick()
             s_command.clear();
 
             s_script = read_xored(filename.c_str());
-            disable_scroll();
+            game_reset();
+            
             run_script(s_script, true);
         } else
             error_exit("bad game command: \"%s\"", s_command);
@@ -898,8 +1005,7 @@ void game_script_tick()
 
 void game_shutdown()
 {
-    clear_anim();
-    disable_scroll();
+    game_reset();
 }
 
 const U8 *game_get_screen_row(int y)
@@ -911,4 +1017,9 @@ const U8 *game_get_screen_row(int y)
         return scroll_window.ptr(scroll_x, y);
 
     return vga_screen.row(y);
+}
+
+void game_hotspot_disable(int which)
+{
+    hotspot_kill(which);
 }
