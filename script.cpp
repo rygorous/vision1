@@ -189,6 +189,7 @@ static bool isInit;
 static int flow_counter;
 static int nest_counter;
 
+static int hotspot_clicked = 0;
 static char cursors[256];
 
 static void scan_line()
@@ -517,7 +518,7 @@ static void cmd_if()
         if (has_prefix(line, "init"))
             cond = isInit;
         else if (has_prefix(line, "hot"))
-            cond = need_int_literal(line(3)) == -1; // TODO real impl!
+            cond = need_int_literal(line(3)) == hotspot_clicked;
         else if (has_prefix(line, "cnt"))
             cond = need_int_literal(line(3)) == 1234; // TODO real impl!
         else if (has_prefix(line, "key"))
@@ -984,6 +985,7 @@ static void game_reset()
     scroll_disable();
     hotspot_reset();
     cursor_reset();
+    hotspot_clicked = 0;
 }
 
 void game_script_tick()
@@ -998,9 +1000,20 @@ void game_script_tick()
             
             run_script(s_script, true);
         } else
-            error_exit("bad game command: \"%s\"", s_command);
-    } else
+            error_exit("bad game command: \"%s\"", s_command.c_str());
+    } else {
+        static int old_button;
+        int button_down = mouse_button & ~old_button;
+        old_button = mouse_button;
+
+        hotspot_clicked = 0;
+        if (button_down) {
+            if (int hot = hotspot_get(mouse_x, mouse_y))
+                hotspot_clicked = hot;
+        }
+
         run_script(s_script, false);
+    }
 }
 
 void game_shutdown()
