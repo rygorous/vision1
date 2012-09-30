@@ -104,6 +104,13 @@ const PixelSlice PixelSlice::slice(int x0, int y0, int x1, int y1) const
     return s;
 }
 
+PixelSlice PixelSlice::clone()
+{
+    PixelSlice s = make(w, h);
+    blit(s, 0, 0, *this);
+    return s;
+}
+
 PixelSlice PixelSlice::make_resized(int neww, int newh)
 {
     PixelSlice s = black(neww, newh);
@@ -191,11 +198,16 @@ static void decode_rle(U8 *dst, const U8 *src)
     }
 }
 
-PixelSlice load_rle_pixels(const Slice &s)
+PixelSlice load_rle_pixels(const Slice &s, int w, int h)
 {
-    PixelSlice p = PixelSlice::make(little_u16(&s[0]), little_u16(&s[2]));
-    decode_rle(p.row(0), &s[4]);
+    PixelSlice p = PixelSlice::make(w, h);
+    decode_rle(p.row(0), &s[0]);
     return p;
+}
+
+PixelSlice load_rle_with_header(const Slice &s)
+{
+    return load_rle_pixels(s(4), little_u16(&s[0]), little_u16(&s[2]));
 }
 
 static int decode_delta(U8 *dst, const U8 *p)
@@ -427,7 +439,7 @@ BigAnimation::BigAnimation(const char *filename, int flags)
 
             assert(pos + 2 <= s.len());
             int src_size = little_u16(&s[pos]);
-            blit_transparent(dst, 0, 0, load_rle_pixels(s(pos + 2)));
+            blit_transparent(dst, 0, 0, load_rle_pixels(s(pos + 2), w, h));
             pos += src_size;
         }
     } else {
@@ -439,7 +451,6 @@ BigAnimation::BigAnimation(const char *filename, int flags)
 
 BigAnimation::~BigAnimation()
 {
-    delete[] data;
 }
 
 void BigAnimation::tick()
@@ -572,7 +583,6 @@ namespace {
         void *ptr;
         int size;
     } save_what[] = {
-        { vga_screen, sizeof(vga_screen) },
         { vga_pal,    sizeof(vga_pal) },
         { palette_a,  sizeof(palette_a) },
         { palette_b,  sizeof(palette_b) },
@@ -585,9 +595,10 @@ SavedScreen::SavedScreen()
     for (int i=0; i < ARRAY_COUNT(save_what); i++)
         total_size += save_what[i].size;
 
-    data = new U8[total_size];
+    pals = new U8[total_size];
 
-    U8 *p = data;
+    pixels = vga_screen.clone();
+    U8 *p = pals;
     for (int i=0; i < ARRAY_COUNT(save_what); i++) {
         memcpy(p, save_what[i].ptr, save_what[i].size);
         p += save_what[i].size;
@@ -597,16 +608,18 @@ SavedScreen::SavedScreen()
 SavedScreen::~SavedScreen()
 {
     restore();
-    delete[] data;
+    delete[] pals;
 }
 
 void SavedScreen::restore()
 {
-    U8 *p = data;
+    U8 *p = pals;
     for (int i=0; i < ARRAY_COUNT(save_what); i++) {
         memcpy(save_what[i].ptr, p, save_what[i].size);
         p += save_what[i].size;
     }
+
+    blit(vga_screen, 0, 0, pixels);
 }
 
 // ---- .mix files
@@ -682,7 +695,7 @@ static void decode_mix(MixItem *items, int count, const char *vbFilename)
             if (type == 5) // delta
                 blit_transparent_shrink(pic_window, x, y, load_delta_pixels(libFile(offs)), items[i].para3, items[i].flipX != 0);
             else if (type == 8) // RLE
-                blit(pic_window, x, y, load_rle_pixels(libFile(offs)));
+                blit(pic_window, x, y, load_rle_with_header(libFile(offs)));
         } else {
             // TODO disable hotspot no. hotIndex
         }
@@ -705,7 +718,7 @@ void load_background(const char *filename, int screen)
             if (s.len() > 63990)
                 memcpy(vga_screen.ptr(0, 0), &s[768], VGA_WIDTH * VGA_HEIGHT);
             else if (little_u16(&s[768]) == 320 && little_u16(&s[770]) == 200)
-                blit(vga_screen, 0, 0, load_rle_pixels(s(768)));
+                blit(vga_screen, 0, 0, load_rle_with_header(s(768)));
             else
                 blit(vga_screen, 0, 0, load_delta_pixels(s(768)));
         }

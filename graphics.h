@@ -61,7 +61,8 @@ public:
 };
 
 class SavedScreen { // RAII
-    U8 *data;
+    U8 *pals;
+    PixelSlice pixels;
 
 public:
     SavedScreen();
@@ -78,7 +79,8 @@ extern Palette palette_a, palette_b;
 void init_graphics();
 void shutdown_graphics();
 
-PixelSlice load_rle_pixels(const Slice &data);
+PixelSlice load_rle_pixels(const Slice &data, int w, int h);
+PixelSlice load_rle_with_header(const Slice &data);
 PixelSlice load_delta_pixels(const Slice &data);
 
 void set_palette();

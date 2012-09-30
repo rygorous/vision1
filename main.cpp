@@ -1,5 +1,6 @@
 #define _CRT_SECURE_NO_DEPRECATE
 #include <Windows.h>
+#include <crtdbg.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -228,6 +229,7 @@ static void init()
 
 static void shutdown()
 {
+    game_shutdown();
     shutdown_font();
     shutdown_mouse();
     shutdown_graphics();
@@ -256,7 +258,7 @@ void frame()
     static U32 framestart = 0;
 
     if (!msgloop())
-        exit(1);
+        throw 1;
 
     HDC hdc = GetDC(hWnd);
     paint(hWnd, hdc);
@@ -275,6 +277,10 @@ void frame()
 
 int main(int argc, char **argv)
 {
+#ifdef _DEBUG
+    //_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_CHECK_ALWAYS_DF | _CRTDBG_CHECK_CRT_DF | _CRTDBG_LEAK_CHECK_DF);
+#endif
+
     init();
 
     HINSTANCE hInstance = GetModuleHandle(NULL);
@@ -283,15 +289,17 @@ int main(int argc, char **argv)
 	ShowWindow(hWnd, SW_SHOW);
 
     //game_command("welt init");
-    //game_command("welt 08360900");
-    game_command("welt dextras");
+    game_command("welt 08360900");
 
-    for (;;) {
-        if (!msgloop())
-            break;
+    try {
+        for (;;) {
+            if (!msgloop())
+                break;
 
-        game_script_tick();
-        game_frame();
+            game_script_tick();
+            game_frame();
+        }
+    } catch (int) {
     }
 
     shutdown();

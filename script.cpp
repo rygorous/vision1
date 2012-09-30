@@ -836,3 +836,8 @@ void game_script_tick()
     } else
         run_script(s_script, false);
 }
+
+void game_shutdown()
+{
+    clear_anim();
+}
