@@ -841,3 +841,8 @@ void game_shutdown()
 {
     clear_anim();
 }
+
+const U8 *game_get_screen_row(int y)
+{
+    return vga_screen.row(y);
+}

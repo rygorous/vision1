@@ -70,7 +70,7 @@ static void paint(HWND hwnd, HDC hdc)
     U32 *bits = new U32[w * h];
     for (int y=0; y < h; y++) {
         U32 *dst = bits + y * w;
-        const U8 *src = vga_screen.ptr(0, y);
+        const U8 *src = game_get_screen_row(y);
         for (int x=0; x < w; x++)
             dst[x] = pal[src[x]];
     }
