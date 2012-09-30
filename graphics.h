@@ -4,6 +4,7 @@
 #include "common.h"
 
 struct PixelBuffer;
+class Slice;
 
 struct Rect {
     int x0, y0;
@@ -30,6 +31,7 @@ public:
     const PixelSlice slice(int x0, int y0, int x1, int y1) const;
     PixelSlice slice(int x0, int y0, int x1, int y1) { return (PixelSlice) ((const PixelSlice&) *this).slice(x0, y0, x1, y1); }
 
+    void clear();
     PixelSlice clone();
     PixelSlice make_resized(int neww, int newh);
 
@@ -46,6 +48,7 @@ public:
 
 void blit(PixelSlice &dest, int dx, int dy, const PixelSlice &src);
 void blit_transparent(PixelSlice &dest, int dx, int dy, const PixelSlice &src);
+void blit_transparent_shrink(PixelSlice &dest, int dx, int dy, const PixelSlice &src, int shrink, bool flipX);
 
 class Animation { // abstract interface
 public:
@@ -67,13 +70,20 @@ public:
     void restore();
 };
 
+extern PixelSlice vga_screen;
+extern Palette vga_pal;
+
 extern Palette palette_a, palette_b;
 
-PixelSlice load_rle_pixels(const char *filename);
+void init_graphics();
+void shutdown_graphics();
+
+PixelSlice load_rle_pixels(const Slice &data);
+PixelSlice load_delta_pixels(const Slice &data);
 
 void set_palette();
 void set_palb_fade(int intensity);
-void load_background(const char *filename);
+void load_background(const char *filename, int screen=0); // 0=VGA, 1..4=scroll screen
 
 // big anim flags
 enum {

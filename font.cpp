@@ -1,5 +1,6 @@
 #include "font.h"
 #include "graphics.h"
+#include "util.h"
 #include <algorithm>
 #include <string.h>
 #include <assert.h>
@@ -90,7 +91,7 @@ private:
 BitmapFont::BitmapFont(const char *filename, const U8 *widths, const U8 *palette)
     : widths(widths)
 {
-    gfx = load_rle_pixels(filename);
+    gfx = load_rle_pixels(read_file(filename));
     gfx = gfx.make_resized(320, gfx.height());
     memcpy(pal, palette, sizeof(pal));
 }
@@ -124,23 +125,23 @@ void BitmapFont::print_glyph(int posx, int posy, int glyph) const
     // clip (in glyph space)
     int x0 = std::max(0, 0 - posx);
     int y0 = std::max(0, 0 - posy);
-    int x1 = std::min(16, WIDTH - posx);
-    int y1 = std::min(10, HEIGHT - posy);
+    int x1 = std::min(16, vga_screen.width() - posx);
+    int y1 = std::min(10, vga_screen.height() - posy);
 
     const U8 *srcp = gfx.row(y0) + glyph_offsets[glyph];
-    int offset = (posy + y0)*WIDTH + posx;
 
     for (int y=y0; y < y1; y++) {
+        U8 *dst = vga_screen.ptr(posy + y, posx);
+
         for (int x=x0; x < x1; x++) {
             U8 col = srcp[x];
             if (col) {
                 assert(col >= 0xf0);
-                vga_screen[offset + x] = pal[col - 0xf0];
+                dst[x] = pal[col - 0xf0];
             }
         }
 
         srcp += gfx.width();
-        offset += WIDTH;
     }
 }
 

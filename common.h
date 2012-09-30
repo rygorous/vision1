@@ -23,12 +23,6 @@ struct PalEntry {
 
 typedef PalEntry Palette[256];
 
-static const int WIDTH = 320;
-static const int HEIGHT = 200;
-
-extern U8 vga_screen[WIDTH * HEIGHT];
-extern Palette vga_pal;
-
 void error_exit(const char *fmt, ...);
 
 #endif

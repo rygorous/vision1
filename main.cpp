@@ -14,9 +14,6 @@
 
 #pragma comment(lib, "winmm.lib")
 
-U8 vga_screen[WIDTH * HEIGHT];
-PalEntry vga_pal[256];
-
 // ---- utils
 
 static HWND hWnd = 0;
@@ -47,11 +44,14 @@ static void paint(HWND hwnd, HDC hdc)
     RECT rc, r;
     GetClientRect(hwnd, &rc);
 
+    int w = vga_screen.width();
+    int h = vga_screen.height();
+
     BITMAPINFOHEADER bmh;
     ZeroMemory(&bmh, sizeof(bmh));
     bmh.biSize = sizeof(bmh);
-    bmh.biWidth = WIDTH;
-    bmh.biHeight = -HEIGHT;
+    bmh.biWidth = w;
+    bmh.biHeight = -h;
     bmh.biPlanes = 1;
     bmh.biBitCount = 32;
     bmh.biCompression = BI_RGB;
@@ -66,9 +66,13 @@ static void paint(HWND hwnd, HDC hdc)
     }
 
     // convert vga image to true color and draw
-    U32 *bits = new U32[WIDTH*HEIGHT];
-    for (int i=0; i < WIDTH*HEIGHT; i++)
-        bits[i] = pal[vga_screen[i]];
+    U32 *bits = new U32[w * h];
+    for (int y=0; y < h; y++) {
+        U32 *dst = bits + y * w;
+        const U8 *src = vga_screen.ptr(0, y);
+        for (int x=0; x < w; x++)
+            dst[x] = pal[src[x]];
+    }
 
     // render the cursor if required
     POINT ptCursor;
@@ -78,19 +82,19 @@ static void paint(HWND hwnd, HDC hdc)
         ptCursor.x < rc.right && ptCursor.y < rc.bottom)
         render_mouse_cursor(bits, pal);
 
-    StretchDIBits(hdc, 0, 0, WIDTH * 2, HEIGHT * 2, 0, 0, WIDTH, HEIGHT, bits, (BITMAPINFO *)&bmh, DIB_RGB_COLORS, SRCCOPY);
+    StretchDIBits(hdc, 0, 0, w * 2, h * 2, 0, 0, w, h, bits, (BITMAPINFO *)&bmh, DIB_RGB_COLORS, SRCCOPY);
     delete[] bits;
 
     // fill rest with black
     HBRUSH black = (HBRUSH) GetStockObject(BLACK_BRUSH);
 
     r = rc;
-    r.left = WIDTH * 2;
-    r.bottom = HEIGHT * 2;
+    r.left = w * 2;
+    r.bottom = h * 2;
     FillRect(hdc, &r, black);
     
     r = rc;
-    r.top = HEIGHT * 2;
+    r.top = h * 2;
     FillRect(hdc, &r, black);
 }
 
@@ -168,7 +172,7 @@ static void createWindow(HINSTANCE hInstance)
 		error_exit("RegisterClass failed!\n");
 
     DWORD style = WS_OVERLAPPEDWINDOW;
-    RECT r = { 0, 0, WIDTH*2, HEIGHT * 2 };
+    RECT r = { 0, 0, vga_screen.width()*2, vga_screen.height()*2 };
     AdjustWindowRect(&r, style, FALSE);
 
 	hWnd = CreateWindow("ryg.vision1", "vision1", style, CW_USEDEFAULT, CW_USEDEFAULT,
@@ -182,6 +186,7 @@ static void init()
     timeBeginPeriod(1);
     srand(timeGetTime());
 
+    init_graphics();
     init_vars();
     init_font();
     init_mouse();
@@ -225,6 +230,7 @@ static void shutdown()
 {
     shutdown_font();
     shutdown_mouse();
+    shutdown_graphics();
 
     timeEndPeriod(1);
 }
@@ -269,15 +275,16 @@ void frame()
 
 int main(int argc, char **argv)
 {
+    init();
+
     HINSTANCE hInstance = GetModuleHandle(NULL);
     createWindow(hInstance);
 
 	ShowWindow(hWnd, SW_SHOW);
 
-    init();
-
     //game_command("welt init");
-    game_command("welt 08360900");
+    //game_command("welt 08360900");
+    game_command("welt dextras");
 
     for (;;) {
         if (!msgloop())

@@ -7,6 +7,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+static const int VGA_WIDTH = 320;
+static const int VGA_HEIGHT = 200;
+
+static const int PIC_WINDOW_Y0 = 32;
+static const int PIC_WINDOW_Y1 = 144;
+
 Palette palette_a, palette_b;
 
 // ---- pixel slices
@@ -105,13 +111,13 @@ PixelSlice PixelSlice::make_resized(int neww, int newh)
     return s;
 }
 
-static bool clipblit(Rect *sr, int dx, int dy, const PixelSlice &dest, const PixelSlice &src)
+static bool clipblit(Rect *sr, int dx, int dy, const PixelSlice &dest, const PixelSlice &src, int shrink=1)
 {
     // in source rect space
-    sr->x0 = std::max(-dx, 0);
-    sr->y0 = std::max(-dy, 0);
-    sr->x1 = std::min(src.width(), dest.width() - dx);
-    sr->y1 = std::min(src.height(), dest.height() - dy);
+    sr->x0 = std::max(-dx * shrink, 0);
+    sr->y0 = std::max(-dy * shrink, 0);
+    sr->x1 = std::min(src.width(),  (dest.width()  - dx) * shrink);
+    sr->y1 = std::min(src.height(), (dest.height() - dy) * shrink);
     return sr->x0 < sr->x1 && sr->y0 < sr->y1;
 }
 
@@ -144,14 +150,95 @@ void blit_transparent(PixelSlice &dest, int dx, int dy, const PixelSlice &src)
     }
 }
 
-// ---- functions
-
-PixelSlice load_rle_pixels(const char *filename)
+void blit_transparent_shrink(PixelSlice &dest, int dx, int dy, const PixelSlice &src, int shrink, bool flipX)
 {
-    Slice s = read_file(filename);
+    Rect sr;
+    if (!clipblit(&sr, dx, dy, dest, src, shrink))
+        return;
+
+    // todo flipX
+    int w = (sr.x1 - sr.x0) / shrink;
+    int stepx = flipX ? -shrink : shrink;
+    int sxstart = flipX ? sr.x1 : sr.x0;
+
+    for (int sy=sr.y0; sy < sr.y1; sy += shrink) {
+        U8 *d = dest.ptr(dx + sxstart/stepx, dy + sy/shrink);
+        const U8 *s = src.ptr(sxstart, sy);
+
+        for (int x=0; x < w; x++) {
+            if (s[x*stepx])
+                d[x] = s[x*stepx];
+        }
+    }
+}
+
+// ---- file loading
+
+static void decode_rle(U8 *dst, const U8 *src)
+{
+    for (;;) {
+        U8 cmd = *src++;
+        if (cmd == 0xff) { // run
+            U8 len = *src++;
+            if (!len)
+                break;
+
+            U8 val = *src++;
+            memset(dst, val, len);
+            dst += len;
+        } else
+            *dst++ = cmd;
+    }
+}
+
+PixelSlice load_rle_pixels(const Slice &s)
+{
     PixelSlice p = PixelSlice::make(little_u16(&s[0]), little_u16(&s[2]));
     decode_rle(p.row(0), &s[4]);
     return p;
+}
+
+static int decode_delta(U8 *dst, const U8 *p)
+{
+    U8 *dsto = dst;
+    for (;;) {
+        int skip = little_u16(p);
+        p += 2;
+        if (!skip)
+            break;
+
+        dst += skip;
+
+        int len = little_u16(p);
+        memcpy(dst, p + 2, len);
+        dst += len;
+        p += len + 2;
+
+        p++; // what does this byte do?
+    }
+    return (int) (dst - dsto);
+}
+
+PixelSlice load_delta_pixels(const Slice &s)
+{
+    PixelSlice p = PixelSlice::black(VGA_WIDTH, VGA_HEIGHT);
+    int n = decode_delta(p.row(0), &s[0]);
+    return p.slice(0, 0, VGA_WIDTH, (n + VGA_WIDTH-1) / VGA_WIDTH);
+}
+
+// ---- functions
+
+PixelSlice vga_screen;
+Palette vga_pal;
+
+void init_graphics()
+{
+    vga_screen = PixelSlice::black(VGA_WIDTH, VGA_HEIGHT);
+}
+
+void shutdown_graphics()
+{
+    vga_screen = PixelSlice();
 }
 
 void fix_palette(Palette pal)
@@ -280,8 +367,7 @@ Animation *new_color_cycle_anim(int first, int last, int delay, int dir)
 }
 
 class BigAnimation : public Animation { // .ani / .big files
-    U8 *data;
-    int frame_size;
+    PixelSlice data;
 
     int posx, posy;
     int w, h;
@@ -289,7 +375,7 @@ class BigAnimation : public Animation { // .ani / .big files
     int cur_frame, cur_tick;
     int flags;
 
-    const U8 *get_frame(int frame) const;
+    PixelSlice get_frame(int frame) const;
 
 public:
     BigAnimation(const char *filename, int flags);
@@ -301,16 +387,16 @@ public:
     virtual void rewind();
 };
 
-const U8 *BigAnimation::get_frame(int frame) const
+PixelSlice BigAnimation::get_frame(int frame) const
 {
     if (!data || frame < 0 || frame > last_frame)
-        return nullptr;
+        return PixelSlice();
 
-    return data + frame * frame_size;
+    return data.slice(0, frame * h, w, (frame + 1)*h);
 }
 
 BigAnimation::BigAnimation(const char *filename, int flags)
-    : data(nullptr), frame_size(0), posx(0), posy(0), w(0), h(0),
+    : posx(0), posy(0), w(0), h(0),
     last_frame(-1), wait_frames(1), cur_frame(0), cur_tick(0),
     flags(flags)
 {
@@ -329,26 +415,25 @@ BigAnimation::BigAnimation(const char *filename, int flags)
     int fps = s[10];
 
     wait_frames = 70 / fps;
-    frame_size = w * h;
-    int nbytes = (last_frame + 1) * frame_size;
-    data = new U8[nbytes];
+    data = PixelSlice::make(w, (last_frame + 1)*h);
 
     // read contents (frames are stored in reverse order!)
     if (mode > 0x60) {
         U32 pos = 11;
         for (int frame = last_frame; frame >= 0; frame--) {
-            U8 *dst = (U8 *)get_frame(frame);
+            PixelSlice dst = get_frame(frame);
             if (frame != last_frame)
-                memcpy(dst, get_frame(frame + 1), frame_size);
+                blit(dst, 0, 0, get_frame(frame + 1));
 
             assert(pos + 2 <= s.len());
             int src_size = little_u16(&s[pos]);
-            decode_transparent_rle(dst, &s[pos + 2]);
+            blit_transparent(dst, 0, 0, load_rle_pixels(s(pos + 2)));
             pos += src_size;
         }
     } else {
+        int nbytes = (last_frame + 1) * w * h;
         assert(s.len() == nbytes + 11);
-        memcpy(data, &s[11], (last_frame + 1) * frame_size);
+        memcpy(data.row(0), &s[11], nbytes);
     }
 }
 
@@ -377,12 +462,12 @@ void BigAnimation::render()
     if (cur_tick)
         return;
 
-    const U8 *frame = get_frame((flags & BA_REVERSE) ? last_frame - cur_frame : cur_frame);
+    PixelSlice frame = get_frame((flags & BA_REVERSE) ? last_frame - cur_frame : cur_frame);
     if (!frame)
         return;
 
     for (int y=0; y < h; y++)
-        memcpy(&vga_screen[(y + posy) * WIDTH + posx], &frame[y * w], w);
+        memcpy(vga_screen.ptr(posx, posy + y), frame.row(y), w);
 }
 
 bool BigAnimation::is_done() const
@@ -460,7 +545,7 @@ void MegaAnimation::render()
     if (offs < 0 || type != 5)
         error_exit("bad anim! (prefix=%s frame=%d offs=%d type=%d)", nameprefix, cur_frame, offs, type);
 
-    decode_delta_gfx(vga_screen, posx, posy, &grafile[offs], scale, flip != 0);
+    blit_transparent_shrink(vga_screen, posx, posy, load_delta_pixels(grafile(offs)), scale, flip != 0);
 }
 
 bool MegaAnimation::is_done() const
@@ -544,13 +629,16 @@ static void scale_palette(Palette pal, int numColors, int r, int g, int b)
 
 static void flipx_screen()
 {
-    for (int y=0; y < HEIGHT; y++) {
-        U8 *row = vga_screen + y*WIDTH;
-        for (int x=0; x < WIDTH/2; x++) {
+    int w = vga_screen.width();
+    int h = vga_screen.height();
+
+    for (int y=0; y < h; y++) {
+        U8 *row = vga_screen.row(y);
+        for (int x=0; x < w/2; x++) {
             U8 a = row[x];
-            U8 b = row[WIDTH-1-x];
+            U8 b = row[w-1-x];
             row[x] = b;
-            row[WIDTH-1-x] = a;
+            row[w-1-x] = a;
         }
     }
 }
@@ -574,6 +662,8 @@ static void decode_mix(MixItem *items, int count, const char *vbFilename)
             hotIndex = scan_int(line(1));
     }
 
+    PixelSlice pic_window = vga_screen.slice(0, PIC_WINDOW_Y0, vga_screen.width(), PIC_WINDOW_Y1);
+
     // items
     for (int i=2; i < count; i++) {
         PascalStr name(items[i].pasNameStr);
@@ -587,12 +677,12 @@ static void decode_mix(MixItem *items, int count, const char *vbFilename)
         Slice vbLine = chop_line(vbFile);
         if (vbLine.len() == 0 || eval_bool_expr(vbLine)) {
             int x = items[i].para1l + (items[i].para1h << 8);
-            int y = items[i].para2;
+            int y = items[i].para2 - PIC_WINDOW_Y0;
 
             if (type == 5) // delta
-                decode_delta_gfx(vga_screen, x, y, &libFile[offs], items[i].para3, items[i].flipX != 0);
+                blit_transparent_shrink(pic_window, x, y, load_delta_pixels(libFile(offs)), items[i].para3, items[i].flipX != 0);
             else if (type == 8) // RLE
-                decode_rle(vga_screen + y*WIDTH + x, &libFile[offs]);
+                blit(pic_window, x, y, load_rle_pixels(libFile(offs)));
         } else {
             // TODO disable hotspot no. hotIndex
         }
@@ -601,7 +691,7 @@ static void decode_mix(MixItem *items, int count, const char *vbFilename)
     }
 }
 
-void load_background(const char *filename)
+void load_background(const char *filename, int screen)
 {
     Slice s = read_file(filename);
 
@@ -613,11 +703,11 @@ void load_background(const char *filename)
         if (!has_suffix(filename, ".pal")) {
             // gross, but this is the original logic from the game
             if (s.len() > 63990)
-                memcpy(vga_screen, &s[768], WIDTH * HEIGHT);
+                memcpy(vga_screen.ptr(0, 0), &s[768], VGA_WIDTH * VGA_HEIGHT);
             else if (little_u16(&s[768]) == 320 && little_u16(&s[770]) == 200)
-                decode_rle(vga_screen, &s[772]);
+                blit(vga_screen, 0, 0, load_rle_pixels(s(768)));
             else
-                decode_delta(vga_screen, &s[768]);
+                blit(vga_screen, 0, 0, load_delta_pixels(s(768)));
         }
 
         memcpy(palette_a, &s[0], 768);

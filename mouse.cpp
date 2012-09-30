@@ -40,16 +40,17 @@ void render_mouse_cursor(U32 *dest, const U32 *pal)
     int rel_y = mouse_y - cursor.hoty;
     int x0 = std::max(0, 0 - rel_x);
     int y0 = std::max(0, 0 - rel_y);
-    int x1 = std::min(16, WIDTH - rel_x);
-    int y1 = std::min(16, HEIGHT - rel_y);
+    int x1 = std::min(16, vga_screen.width() - rel_x);
+    int y1 = std::min(16, vga_screen.height() - rel_y);
     if (x0 >= x1 || y0 >= y1)
         return;
 
-    int offs = rel_y * WIDTH + rel_x;
+    int width = vga_screen.width();
+    int offs = rel_y * width + rel_x;
     for (int y=y0; y < y1; y++) {
         for (int x=x0; x < x1; x++) {
             if (cursor.img[y][x])
-                dest[offs + y*WIDTH + x] = pal[cursor.img[y][x]];
+                dest[offs + y*width + x] = pal[cursor.img[y][x]];
         }
     }
 }
@@ -60,7 +61,7 @@ void init_mouse()
     Slice gfx = read_file("grafix/pointers.gra");
 
     for (int i=0; i < ARRAY_COUNT(cursor_desc); i++) {
-        U8 dest[16*WIDTH] = { 0 };
+        PixelSlice img = PixelSlice::black(16, 16);
 
         if (cursor_desc[i].filename) {
             U8 type;
@@ -68,13 +69,12 @@ void init_mouse()
             if (offs == -1 || type != 5)
                 error_exit("error finding cursor image '%s'\n", cursor_desc[i].filename);
 
-            int decoded = decode_delta(dest, &gfx[offs]);
-            assert(decoded <= sizeof(dest));
+            img = load_delta_pixels(gfx(offs));
         }
 
         CursorImg &cursor = cursors[i];
         for (int y=0; y < 16; y++)
-            memcpy(cursor.img[y], &dest[y*WIDTH], 16);
+            memcpy(cursor.img[y], img.ptr(0, y), 16);
         cursor.hotx = cursor_desc[i].hotx;
         cursor.hoty = cursor_desc[i].hoty;
     }

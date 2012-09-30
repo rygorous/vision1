@@ -320,20 +320,15 @@ static void display_face(const char *charname, bool flipped, int scale)
     memcpy(&palette_a[128], &s[128*sizeof(PalEntry)], 0x78*sizeof(PalEntry));
     memcpy(&palette_b[128], &s[128*sizeof(PalEntry)], 0x78*sizeof(PalEntry));
 
-    const U8 *faceimg = &s[256*sizeof(PalEntry)];
-
     // TODO this is currently totally broken in the dialogs that use it.
-    if (!flipped) {
-        if (scale == 1)
-            decode_delta_gfx(vga_screen, 0, 0, faceimg, 1, false);
-        else if (scale == 2)
-            decode_delta_gfx(vga_screen, 76, 27, faceimg, 2, false);
-    } else {
-        if (scale == 1)
-            decode_delta_gfx(vga_screen, 319, 0, faceimg, 1, true);
-        else if (scale == 2)
-            decode_delta_gfx(vga_screen, 0, 0, faceimg, 2, true);
-    }
+    int x = 0, y = 0;
+    if (!flipped && scale == 2) {
+        x = 76;
+        y = 27;
+    } else if (flipped)
+        x = 319;
+
+    blit_transparent_shrink(vga_screen, x, y, load_delta_pixels(s(sizeof(Palette))), scale, flipped);
     set_palette();
 }
 
