@@ -70,6 +70,31 @@ static void wait_anim_done()
         game_frame();
 }
 
+// ---- scroll window
+
+static const int SCROLL_SCREEN_WIDTH = 320;
+static const int SCROLL_WINDOW_WIDTH = SCROLL_SCREEN_WIDTH*4;
+static const int SCROLL_WINDOW_Y0 = 32;
+static const int SCROLL_WINDOW_Y1 = 144;
+
+static PixelSlice scroll_window;
+static int scroll_x, scroll_x_min, scroll_x_max;
+
+static void disable_scroll()
+{
+    scroll_window = PixelSlice();
+    scroll_x = 0;
+    scroll_x_min = scroll_x_max = 0;
+}
+
+static void enable_scroll()
+{
+    if (scroll_window)
+        return;
+
+    scroll_window = PixelSlice::make(SCROLL_WINDOW_WIDTH, SCROLL_WINDOW_Y1 - SCROLL_WINDOW_Y0);
+}
+
 // ---- script low-level scanning
 
 static Slice source, scan, line;
@@ -517,6 +542,7 @@ static void cmd_exec()
         std::string charname = str_word();
         std::string dlgname = str_word();
 
+        disable_scroll();
         run_dialog(charname.c_str(), dlgname.c_str());
     } else {
         printf("don't know how to exec: ");
@@ -683,20 +709,27 @@ static void cmd_back()
     std::string filename = str_word();
     int slot = int_value_word();
 
-    if (slot == 1) { // TODO proper scroll support
-        load_background(filename.c_str());
-        set_palette();
+    load_background(filename.c_str());
+    set_palette();
+
+    if (slot != 0) {
+        enable_scroll();
+        blit(scroll_window, (slot - 1) * SCROLL_SCREEN_WIDTH, 0,
+            vga_screen.slice(0, SCROLL_WINDOW_Y0, vga_screen.width(), SCROLL_WINDOW_Y1));
     }
 }
 
 static void cmd_scroll()
 {
-    printf("SCROLL %s\n", to_string(line).c_str());
+    std::string mode = str_word();
+    scroll_x_min = int_value_word();
+    scroll_x_max = int_value_word();
+    printf("scroll: mode=%s min=%d max=%d\n", mode.c_str(), scroll_x_min, scroll_x_max);
 }
 
 static void cmd_start()
 {
-    printf("START %s\n", to_string(line).c_str());
+    scroll_x = int_value_word();
 }
 
 static void cmd_pointer()
@@ -830,6 +863,7 @@ void game_script_tick()
             s_command.clear();
 
             s_script = read_xored(filename.c_str());
+            disable_scroll();
             run_script(s_script, true);
         } else
             error_exit("bad game command: \"%s\"", s_command);
@@ -840,9 +874,16 @@ void game_script_tick()
 void game_shutdown()
 {
     clear_anim();
+    disable_scroll();
 }
 
 const U8 *game_get_screen_row(int y)
 {
+    if (y < 0 || y >= 200)
+        return 0;
+
+    if (scroll_window && y >= SCROLL_WINDOW_Y0 && y < SCROLL_WINDOW_Y1)
+        return scroll_window.ptr(scroll_x, y - SCROLL_WINDOW_Y0);
+
     return vga_screen.row(y);
 }
