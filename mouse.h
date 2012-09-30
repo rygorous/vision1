@@ -14,7 +14,7 @@ extern int mouse_x, mouse_y, mouse_button;
     X(TURNU,    'u',    "umdrehen",      8, 12) \
     X(QUESTION, 'f',    "fragezei",      8,  8) \
     X(GRAB,     'g',    "grabsch",       8,  8) \
-    X(TALK,     '?',    "laber",         8, 14) \
+    X(TALK,     's',    "laber",         8, 14) \
     X(FORWARD,  'v',    "vorw\x8erts",   8,  4)
 
 enum MouseCursor {

@@ -190,6 +190,8 @@ static int flow_counter;
 static int nest_counter;
 
 static int hotspot_clicked = 0;
+static int hotspot_last = 0;
+static MouseCursor cursor_override;
 static char cursors[256];
 
 static void scan_line()
@@ -840,7 +842,9 @@ static void cmd_start()
 
 static void cmd_pointer()
 {
-    printf("POINTER %s\n", to_string(line).c_str());
+    std::string which = str_word();
+    if (!which.empty())
+        cursor_override = get_mouse_cursor_from_char(which[0]);
 }
 
 static void cmd_killhotspot()
@@ -959,7 +963,11 @@ void game_frame()
     scroll_tick();
 
     int hot = hotspot_get(mouse_x, mouse_y);
-    set_mouse_cursor(hot2cursor[hot]);
+    MouseCursor cursor = hot2cursor[hot];
+    if (hot == hotspot_last && cursor_override)
+        cursor = cursor_override;
+
+    set_mouse_cursor(cursor);
 
 #if 0 // hotspot debug
     PixelSlice target = scroll_window ? scroll_window : vga_screen;
@@ -1008,11 +1016,14 @@ void game_script_tick()
 
         hotspot_clicked = 0;
         if (button_down) {
-            if (int hot = hotspot_get(mouse_x, mouse_y))
+            if (int hot = hotspot_get(mouse_x, mouse_y)) {
                 hotspot_clicked = hot;
-        }
+                hotspot_last = hot;
+                cursor_override = MC_NULL;
+            }
 
-        run_script(s_script, false);
+            run_script(s_script, false);
+        }
     }
 }
 
