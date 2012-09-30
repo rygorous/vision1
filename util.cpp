@@ -98,6 +98,14 @@ PascalStr::~PascalStr()
     delete[] data;
 }
 
+std::string tolower(const std::string &s)
+{
+    std::string out = s;
+    for (auto it = out.begin(); it != out.end(); ++it)
+        *it = tolower(*it);
+    return out;
+}
+
 bool has_suffix(const char *str, const char *suffix)
 {
     int len = strlen(str);

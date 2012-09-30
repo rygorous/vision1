@@ -4,6 +4,7 @@
 #include "util.h"
 #include "vars.h"
 #include "dialog.h"
+#include "mouse.h"
 #include <assert.h>
 #include <stdio.h>
 #include <ctype.h>
@@ -81,6 +82,7 @@ static const int SCROLL_WINDOW_Y1 = 144;
 
 static PixelSlice scroll_window;
 static int scroll_x, scroll_x_min, scroll_x_max;
+static bool scroll_auto;
 
 static void disable_scroll()
 {
@@ -95,6 +97,18 @@ static void enable_scroll()
         return;
 
     scroll_window = PixelSlice::make(SCROLL_WINDOW_WIDTH, vga_screen.height());
+}
+
+static void scroll_tick()
+{
+    static const int scroll_border = 32;
+    if (!scroll_auto)
+        return;
+
+    if (mouse_x < scroll_border)
+        scroll_x = std::max(scroll_x - 1, scroll_x_min);
+    else if (mouse_x >= vga_screen.width() - scroll_border)
+        scroll_x = std::min(scroll_x + 1, scroll_x_max);
 }
 
 // ---- script low-level scanning
@@ -733,6 +747,7 @@ static void cmd_scroll()
     std::string mode = str_word();
     scroll_x_min = int_value_word();
     scroll_x_max = int_value_word();
+    scroll_auto = tolower(mode) == "auto";
     printf("scroll: mode=%s min=%d max=%d\n", mode.c_str(), scroll_x_min, scroll_x_max);
 }
 
@@ -858,6 +873,7 @@ void game_frame()
 {
     render_anim();
     tick_anim();
+    scroll_tick();
 
     // time handling etc. should also go here
 
