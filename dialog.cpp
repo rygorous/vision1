@@ -437,7 +437,7 @@ static void say_line_callback(void *user, size_t start, size_t end)
 {
     Animation *mouth = (Animation *)user;
     for (size_t i = start; i < end; i++) {
-        mouth->render();
+        mouth->render(vga_screen);
         mouth->tick();
         if (mouth->is_done())
             mouth->rewind();
@@ -452,7 +452,7 @@ static void say_line(Animation *mouth, const U8 *text, int len, bool flipped, in
     print_text_linebreak(bigfont, text, len, x, y, x + 144, say_line_callback, mouth);
 
     mouth->rewind();
-    mouth->render();
+    mouth->render(vga_screen);
     game_frame();
 }
 

@@ -311,7 +311,7 @@ public:
     ColorCycleAnimation(int first, int last, int delay, int dir);
 
     virtual void tick();
-    virtual void render();
+    virtual void render(PixelSlice &target);
     virtual bool is_done() const;
     virtual void rewind();
 };
@@ -356,7 +356,7 @@ void ColorCycleAnimation::tick()
     cur_offs = next_offs(cur_offs);
 }
 
-void ColorCycleAnimation::render()
+void ColorCycleAnimation::render(PixelSlice &target)
 {
     render_pal(palette_a, orig_a, cur_offs, next_offs(cur_offs), 256 * cur_tick / delay);
     render_pal(palette_b, orig_b, cur_offs, next_offs(cur_offs), 256 * cur_tick / delay);
@@ -394,7 +394,7 @@ public:
     virtual ~BigAnimation();
 
     virtual void tick();
-    virtual void render();
+    virtual void render(PixelSlice &target);
     virtual bool is_done() const;
     virtual void rewind();
 };
@@ -468,17 +468,12 @@ void BigAnimation::tick()
     }
 }
 
-void BigAnimation::render()
+void BigAnimation::render(PixelSlice &target)
 {
     if (cur_tick)
         return;
 
-    PixelSlice frame = get_frame((flags & BA_REVERSE) ? last_frame - cur_frame : cur_frame);
-    if (!frame)
-        return;
-
-    for (int y=0; y < h; y++)
-        memcpy(vga_screen.ptr(posx, posy + y), frame.row(y), w);
+    blit(target, posx, posy, get_frame((flags & BA_REVERSE) ? last_frame - cur_frame : cur_frame));
 }
 
 bool BigAnimation::is_done() const
@@ -512,7 +507,7 @@ public:
     virtual ~MegaAnimation();
 
     virtual void tick();
-    virtual void render();
+    virtual void render(PixelSlice &target);
     virtual bool is_done() const;
     virtual void rewind();
 };
@@ -544,7 +539,7 @@ void MegaAnimation::tick()
     }
 }
 
-void MegaAnimation::render()
+void MegaAnimation::render(PixelSlice &target)
 {
     if (cur_tick)
         return;
@@ -556,7 +551,7 @@ void MegaAnimation::render()
     if (offs < 0 || type != 5)
         error_exit("bad anim! (prefix=%s frame=%d offs=%d type=%d)", nameprefix, cur_frame, offs, type);
 
-    blit_transparent_shrink(vga_screen, posx, posy, load_delta_pixels(grafile(offs)), scale, flip != 0);
+    blit_transparent_shrink(target, posx, posy, load_delta_pixels(grafile(offs)), scale, flip != 0);
 }
 
 bool MegaAnimation::is_done() const

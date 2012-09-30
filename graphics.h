@@ -55,7 +55,7 @@ public:
     virtual ~Animation();
 
     virtual void tick() = 0;
-    virtual void render() = 0;
+    virtual void render(PixelSlice &screen) = 0;
     virtual bool is_done() const = 0;
     virtual void rewind() = 0;
 };

@@ -14,6 +14,7 @@
 namespace {
     struct AnimDesc {
         Animation *anim;
+        PixelSlice target;
         bool is_looped;
     };
 }
@@ -28,10 +29,11 @@ static void clear_anim()
     }
 }
 
-static void add_anim(Animation *anim, bool looped=false)
+static void add_anim(Animation *anim, bool looped, PixelSlice target)
 {
     AnimDesc desc;
     desc.anim = anim;
+    desc.target = target;
     desc.is_looped = looped;
     animations.push_back(desc);
 }
@@ -39,7 +41,7 @@ static void add_anim(Animation *anim, bool looped=false)
 static void render_anim()
 {
     for (auto it = animations.begin(); it != animations.end(); ++it)
-        it->anim->render();
+        it->anim->render(it->target);
 }
 
 static void tick_anim()
@@ -92,7 +94,7 @@ static void enable_scroll()
     if (scroll_window)
         return;
 
-    scroll_window = PixelSlice::make(SCROLL_WINDOW_WIDTH, SCROLL_WINDOW_Y1 - SCROLL_WINDOW_Y0);
+    scroll_window = PixelSlice::make(SCROLL_WINDOW_WIDTH, vga_screen.height());
 }
 
 // ---- script low-level scanning
@@ -619,8 +621,9 @@ static void cmd_big()
         flags |= BA_REVERSE;
         filename = filename.substr(1);
     }
-    
-    add_anim(new_big_anim(filename.c_str(), flags));
+
+    assert(!scroll_window);
+    add_anim(new_big_anim(filename.c_str(), flags), false, vga_screen);
 }
 
 static void cmd_megaanim()
@@ -635,8 +638,9 @@ static void cmd_megaanim()
     int scale = int_value_word();
     int flip = int_value_word();
 
+    assert(!scroll_window);
     add_anim(new_mega_anim(grafilename.c_str(), prefix.c_str(), frame_start, frame_end, posx, posy,
-        delay, scale, flip));
+        delay, scale, flip), false, vga_screen);
 }
 
 static void cmd_color()
@@ -661,7 +665,7 @@ static void cmd_cycle()
     int delay = int_value_word();
     int dir = int_value_word();
 
-    add_anim(new_color_cycle_anim(first, last, delay, dir), true);
+    add_anim(new_color_cycle_anim(first, last, delay, dir), true, vga_screen);
 }
 
 static void cmd_fx()
@@ -699,9 +703,15 @@ static void cmd_ani()
         flags |= BA_REVERSE;
         filename = filename.substr(1);
     }
-    
-    if (screen == 1) // TODO proper scroll support
-        add_anim(new_big_anim(filename.c_str(), flags), true);
+
+    PixelSlice target = vga_screen;
+    if (screen != 0) {
+        assert(scroll_window != 0);
+        int x0 = (screen - 1) * SCROLL_SCREEN_WIDTH;
+        target = scroll_window.slice(x0, 0, x0 + SCROLL_SCREEN_WIDTH, vga_screen.height());
+    }
+
+    add_anim(new_big_anim(filename.c_str(), flags), true, target);
 }
 
 static void cmd_back()
@@ -714,8 +724,7 @@ static void cmd_back()
 
     if (slot != 0) {
         enable_scroll();
-        blit(scroll_window, (slot - 1) * SCROLL_SCREEN_WIDTH, 0,
-            vga_screen.slice(0, SCROLL_WINDOW_Y0, vga_screen.width(), SCROLL_WINDOW_Y1));
+        blit(scroll_window, (slot - 1) * SCROLL_SCREEN_WIDTH, 0, vga_screen);
     }
 }
 
@@ -883,7 +892,7 @@ const U8 *game_get_screen_row(int y)
         return 0;
 
     if (scroll_window && y >= SCROLL_WINDOW_Y0 && y < SCROLL_WINDOW_Y1)
-        return scroll_window.ptr(scroll_x, y - SCROLL_WINDOW_Y0);
+        return scroll_window.ptr(scroll_x, y);
 
     return vga_screen.row(y);
 }
