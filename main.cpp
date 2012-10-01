@@ -12,6 +12,7 @@
 #include "font.h"
 #include "script.h"
 #include "mouse.h"
+#include "corridor.h"
 
 #pragma comment(lib, "winmm.lib")
 
@@ -191,6 +192,7 @@ static void init()
     init_vars();
     init_font();
     init_mouse();
+    corridor_init();
 
 #if 0
     display_pic("grafix/back01.pic");
@@ -233,6 +235,7 @@ static void shutdown()
     shutdown_font();
     shutdown_mouse();
     shutdown_graphics();
+    corridor_shutdown();
 
     timeEndPeriod(1);
 }
