@@ -60,9 +60,9 @@ Font::~Font()
 {
 }
 
-void Font::print(int x, int y, const char *str) const
+void Font::print(PixelSlice &target, int x, int y, const char *str) const
 {
-    print(x, y, str, strlen(str));
+    print(target, x, y, str, strlen(str));
 }
 
 int Font::str_width(const char *str) const
@@ -74,12 +74,12 @@ class BitmapFont : public Font {
 public:
     BitmapFont(const char *filename, const U8 *widths, const U8 *palette);
 
-    virtual void print(int x, int y, const char *str, int len) const;
+    virtual void print(PixelSlice &target, int x, int y, const char *str, int len) const;
     virtual int glyph_width(char ch) const;
     virtual int str_width(const char *str, int len) const;
 
 private:
-    void print_glyph(int x, int y, int glyph) const;
+    void print_glyph(PixelSlice &target, int x, int y, int glyph) const;
     static int glyph_index(U8 ch);
 
     PixelSlice gfx;
@@ -96,12 +96,12 @@ BitmapFont::BitmapFont(const char *filename, const U8 *widths, const U8 *palette
     memcpy(pal, palette, sizeof(pal));
 }
 
-void BitmapFont::print(int x, int y, const char *str, int len) const
+void BitmapFont::print(PixelSlice &target, int x, int y, const char *str, int len) const
 {
     for (int i=0; i < len; i++) {
         int glyph = glyph_index(str[i]);
         if (glyph >= 0x20)
-            print_glyph(x, y, glyph - 0x20);
+            print_glyph(target, x, y, glyph - 0x20);
         x += widths[glyph]-1;
     }
 }
@@ -120,18 +120,18 @@ int BitmapFont::str_width(const char *str, int len) const
     return w;
 }
 
-void BitmapFont::print_glyph(int posx, int posy, int glyph) const
+void BitmapFont::print_glyph(PixelSlice &target, int posx, int posy, int glyph) const
 {
     // clip (in glyph space)
     int x0 = std::max(0, 0 - posx);
     int y0 = std::max(0, 0 - posy);
-    int x1 = std::min(16, vga_screen.width() - posx);
-    int y1 = std::min(10, vga_screen.height() - posy);
+    int x1 = std::min(16, target.width() - posx);
+    int y1 = std::min(10, target.height() - posy);
 
     const U8 *srcp = gfx.row(y0) + glyph_offsets[glyph];
 
     for (int y=y0; y < y1; y++) {
-        U8 *dst = vga_screen.ptr(posx, posy + y);
+        U8 *dst = target.ptr(posx, posy + y);
 
         for (int x=x0; x < x1; x++) {
             U8 col = srcp[x];

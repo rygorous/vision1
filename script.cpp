@@ -5,6 +5,7 @@
 #include "vars.h"
 #include "dialog.h"
 #include "mouse.h"
+#include "font.h"
 #include <assert.h>
 #include <stdio.h>
 #include <ctype.h>
@@ -75,6 +76,8 @@ static void wait_anim_done()
 
 // ---- scroll window
 
+static void print_clear();
+
 static const int SCROLL_SCREEN_WIDTH = 320;
 static const int SCROLL_WINDOW_WIDTH = SCROLL_SCREEN_WIDTH*4;
 static const int SCROLL_WINDOW_Y0 = 32;
@@ -105,10 +108,80 @@ static void scroll_tick()
     if (!scroll_auto)
         return;
 
-    if (mouse_x < scroll_border)
+    if (mouse_x < scroll_border) {
+        print_clear();
         scroll_x = std::max(scroll_x - 1, scroll_x_min);
-    else if (mouse_x >= vga_screen.width() - scroll_border)
+    } else if (mouse_x >= vga_screen.width() - scroll_border) {
+        print_clear();
         scroll_x = std::min(scroll_x + 1, scroll_x_max);
+    }
+}
+
+static PixelSlice scroll_getscreen()
+{
+    if (scroll_window)
+        return scroll_window.slice(scroll_x, 0, scroll_x + vga_screen.width(), vga_screen.height());
+    else
+        return vga_screen;
+}
+
+// ---- text printing
+
+static PixelSlice print_saveunder;
+static int print_savey;
+
+static void print_clear()
+{
+    if (!print_saveunder)
+        return;
+
+    blit(scroll_getscreen(), 0, print_savey, print_saveunder);
+    print_saveunder = PixelSlice();
+}
+
+static int print_getlinelen(const char *str)
+{
+    const char *hash = strchr(str, '#');
+    return hash ? (int) (hash - str) : strlen(str);
+}
+
+static void print_getsize(int *w, int *h, const char *str)
+{
+    *w = 0;
+    *h = 0;
+    while (*str) {
+        int len = print_getlinelen(str);
+        *w = std::max(*w, bigfont->str_width(str, len));
+        *h += 10;
+
+        str += len;
+        if (*str == '#')
+            str++;
+    }
+}
+
+static void print_text(const char *str)
+{
+    print_clear();
+
+    int w, h;
+    print_getsize(&w, &h, str);
+
+    PixelSlice screen = scroll_getscreen();
+    print_savey = 126 - h/2;
+    print_saveunder = screen.slice(0, print_savey, vga_screen.width(), print_savey + h).clone();
+
+    int y = print_savey;
+    while (*str) {
+        int len = print_getlinelen(str);
+        int w = bigfont->str_width(str, len);
+        bigfont->print(screen, (320 - w) / 2, y, str);
+
+        y += 10;
+        str += len;
+        if (*str == '#')
+            str++;
+    }
 }
 
 // ---- hot spots
@@ -772,10 +845,8 @@ static void cmd_def()
 {
     int which = int_value_word();
     std::string code = str_word();
-    if (!code.empty()) {
-        printf("  hot %d=%c\n", which, code[0]);
+    if (!code.empty())
         cursor_define(which, code[0]);
-    }
 }
 
 static void cmd_hot()
@@ -788,7 +859,7 @@ static void cmd_hot()
 
 static void cmd_print()
 {
-    printf("PRINT %s\n", to_string(line).c_str());
+    print_text(to_string(line).c_str());
 }
 
 static void cmd_ani()
@@ -972,6 +1043,7 @@ static void game_reset()
     scroll_disable();
     hotspot_reset();
     cursor_reset();
+    print_clear();
     hotspot_clicked = 0;
 }
 
@@ -996,18 +1068,16 @@ void game_script_tick()
 
         set_mouse_cursor(cursor);
 
-    #if 0 // hotspot debug
-        PixelSlice target = scroll_window ? scroll_window : vga_screen;
-        int x0 = scroll_window ? scroll_x : 0;
-
+#if 0 // hotspot debug
+        PixelSlice target = scroll_getscreen();
         for (int y=SCROLL_WINDOW_Y0; y < SCROLL_WINDOW_Y1; y++) {
             for (int x=0; x < 320; x++) {
                 int hot = hotspot_get(x, y);
                 if (hot)
-                    *target.ptr(x + x0, y) = 1;
+                    *target.ptr(x, y) = 1;
             }
         }
-    #endif
+#endif
 
         scroll_tick();
 
@@ -1017,6 +1087,7 @@ void game_script_tick()
 
         hotspot_clicked = 0;
         if (button_down) {
+            print_clear();
             if (int hot = hotspot_get(mouse_x, mouse_y)) {
                 hotspot_clicked = hot;
                 hotspot_last = hot;

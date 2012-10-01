@@ -412,7 +412,7 @@ static int print_text_linebreak(const Font *font, const U8 *text, int len, int x
         // break if we need to
         if (cur_x + layoutw > x1) {
             if (lasthyph)
-                font->print(cur_x, cur_y, "-");
+                font->print(vga_screen, cur_x, cur_y, "-");
             cur_x = x0;
             cur_y += lineh;
             if (txt[start] == ' ') {
@@ -425,7 +425,7 @@ static int print_text_linebreak(const Font *font, const U8 *text, int len, int x
         if (fragment_callback)
             fragment_callback(user, start, end);
 
-        font->print(cur_x, cur_y, &txt[start], end-start);
+        font->print(vga_screen, cur_x, cur_y, &txt[start], end-start);
         cur_x += width;
         lasthyph = hashyph;
     }
