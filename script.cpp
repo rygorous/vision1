@@ -6,6 +6,7 @@
 #include "dialog.h"
 #include "mouse.h"
 #include "font.h"
+#include "corridor.h"
 #include <assert.h>
 #include <stdio.h>
 #include <ctype.h>
@@ -1021,8 +1022,15 @@ static void run_script(Slice code, bool init)
 
 // ---- outer logic
 
+enum GameMode
+{
+    GM_ROOM,
+    GM_CORRIDOR
+};
+
 static Slice s_script;
 static std::string s_command;
+static GameMode s_mode = GM_ROOM;
 
 void game_command(const char *cmd)
 {
@@ -1050,54 +1058,71 @@ static void game_reset()
     hotspot_clicked = 0;
 }
 
+static void game_script_tick_room()
+{
+    int hot = hotspot_get(mouse_x, mouse_y);
+    MouseCursor cursor = hot2cursor[hot];
+    if (hot == hotspot_last && cursor_override)
+        cursor = cursor_override;
+
+    set_mouse_cursor(cursor);
+
+#if 0 // hotspot debug
+    PixelSlice target = scroll_getscreen();
+    for (int y=SCROLL_WINDOW_Y0; y < SCROLL_WINDOW_Y1; y++) {
+        for (int x=0; x < 320; x++) {
+            int hot = hotspot_get(x, y);
+            if (hot)
+                *target.ptr(x, y) = 1;
+        }
+    }
+#endif
+
+    scroll_tick();
+
+    static int old_button;
+    int button_down = mouse_button & ~old_button;
+    old_button = mouse_button;
+
+    hotspot_clicked = 0;
+    if (button_down) {
+        print_clear();
+        if (int hot = hotspot_get(mouse_x, mouse_y)) {
+            hotspot_clicked = hot;
+            hotspot_last = hot;
+            cursor_override = MC_NULL;
+        }
+
+        run_script(s_script, false);
+    }
+}
+
+static void game_script_tick_corridor()
+{
+}
+
 void game_script_tick()
 {
     if (!s_command.empty()) {
+        game_reset();
+
         if (has_prefix(s_command, "welt ")) {
             std::string filename = "data/" + s_command.substr(5) + ".par";
             s_command.clear();
 
+            s_mode = GM_ROOM;
             s_script = read_xored(filename.c_str());
-            game_reset();
-            
             run_script(s_script, true);
+        } else if (has_prefix(s_command, "gang ")) {
+            s_mode = GM_CORRIDOR;
+            corridor_render();
         } else
             error_exit("bad game command: \"%s\"", s_command.c_str());
     } else {
-        int hot = hotspot_get(mouse_x, mouse_y);
-        MouseCursor cursor = hot2cursor[hot];
-        if (hot == hotspot_last && cursor_override)
-            cursor = cursor_override;
-
-        set_mouse_cursor(cursor);
-
-#if 0 // hotspot debug
-        PixelSlice target = scroll_getscreen();
-        for (int y=SCROLL_WINDOW_Y0; y < SCROLL_WINDOW_Y1; y++) {
-            for (int x=0; x < 320; x++) {
-                int hot = hotspot_get(x, y);
-                if (hot)
-                    *target.ptr(x, y) = 1;
-            }
-        }
-#endif
-
-        scroll_tick();
-
-        static int old_button;
-        int button_down = mouse_button & ~old_button;
-        old_button = mouse_button;
-
-        hotspot_clicked = 0;
-        if (button_down) {
-            print_clear();
-            if (int hot = hotspot_get(mouse_x, mouse_y)) {
-                hotspot_clicked = hot;
-                hotspot_last = hot;
-                cursor_override = MC_NULL;
-            }
-
-            run_script(s_script, false);
+        switch (s_mode) {
+        case GM_ROOM:       game_script_tick_room(); break;
+        case GM_CORRIDOR:   game_script_tick_corridor(); break;
+        default:            error_exit("bad state"); break;
         }
     }
 }
