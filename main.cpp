@@ -292,7 +292,8 @@ int main(int argc, char **argv)
 	ShowWindow(hWnd, SW_SHOW);
 
     //game_command("welt init");
-    game_command("welt 08360900");
+    //game_command("welt 08360900");
+    game_command("gang #");
 
     try {
         for (;;) {

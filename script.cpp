@@ -1106,6 +1106,7 @@ void game_script_tick()
             run_script(s_script, true);
         } else if (has_prefix(s_command, "gang ")) {
             s_mode = GM_CORRIDOR;
+            corridor_start();
             corridor_render();
         } else
             panic("bad game command: \"%s\"", s_command.c_str());

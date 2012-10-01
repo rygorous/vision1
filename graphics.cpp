@@ -237,21 +237,20 @@ PixelSlice load_hot(const Slice &s)
 static int decode_delta(U8 *dst, const U8 *p)
 {
     U8 *dsto = dst;
-    for (;;) {
-        int skip = little_u16(p);
-        p += 2;
-        if (!skip)
-            break;
-
-        dst += skip;
-
+    int skip = little_u16(p);
+    dst += skip;
+    p += 2;
+    do {
         int len = little_u16(p);
         memcpy(dst, p + 2, len);
         dst += len;
         p += len + 2;
 
         p++; // what does this byte do?
-    }
+        skip = little_u16(p);
+        p += 2;
+        dst += skip;
+    } while (skip);
     return (int) (dst - dsto);
 }
 
