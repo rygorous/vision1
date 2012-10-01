@@ -17,7 +17,7 @@ public:
 
 extern Font *bigfont, *bigfont_highlight;
 
-void init_font();
-void shutdown_font();
+void font_init();
+void font_shutdown();
 
 #endif

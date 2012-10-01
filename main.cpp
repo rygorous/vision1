@@ -188,10 +188,10 @@ static void init()
     timeBeginPeriod(1);
     srand(timeGetTime());
 
-    init_graphics();
-    init_vars();
-    init_font();
-    init_mouse();
+    graphics_init();
+    vars_init();
+    font_init();
+    mouse_init();
     corridor_init();
 
 #if 0
@@ -232,9 +232,9 @@ static void init()
 static void shutdown()
 {
     game_shutdown();
-    shutdown_font();
-    shutdown_mouse();
-    shutdown_graphics();
+    font_shutdown();
+    mouse_shutdown();
+    graphics_shutdown();
     corridor_shutdown();
 
     timeEndPeriod(1);

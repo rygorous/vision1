@@ -66,7 +66,7 @@ MouseCursor get_mouse_cursor_from_char(char ch)
     return ret;
 }
 
-void init_mouse()
+void mouse_init()
 {
     set_mouse_cursor(MC_NORMAL);
     Slice gfx = read_file("grafix/pointers.gra");
@@ -91,6 +91,6 @@ void init_mouse()
     }
 }
 
-void shutdown_mouse()
+void mouse_shutdown()
 {
 }

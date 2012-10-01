@@ -249,12 +249,12 @@ PixelSlice load_delta_pixels(const Slice &s)
 PixelSlice vga_screen;
 Palette vga_pal;
 
-void init_graphics()
+void graphics_init()
 {
     vga_screen = PixelSlice::black(VGA_WIDTH, VGA_HEIGHT);
 }
 
-void shutdown_graphics()
+void graphics_shutdown()
 {
     vga_screen = PixelSlice();
 }

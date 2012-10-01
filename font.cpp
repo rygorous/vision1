@@ -172,13 +172,13 @@ static const U8 fontpal_small_default[16] = {
     0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
 };
 
-void init_font()
+void font_init()
 {
     bigfont = new BitmapFont("grafix/zsatz.blk", widths_big, fontpal_big_default);
     bigfont_highlight = new BitmapFont("grafix/zsatz.blk", widths_big, fontpal_big_yellow);
 }
 
-void shutdown_font()
+void font_shutdown()
 {
     delete bigfont;
     delete bigfont_highlight;

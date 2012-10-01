@@ -15,7 +15,7 @@ static std::string canonical(const std::string &in)
     return s;
 }
 
-void init_vars()
+void vars_init()
 {
     // init to default values!
     set_var_str("vorname$", "");

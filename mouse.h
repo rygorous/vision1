@@ -27,7 +27,7 @@ void set_mouse_cursor(MouseCursor which);
 void render_mouse_cursor(U32 *dest, const U32 *pal);
 MouseCursor get_mouse_cursor_from_char(char ch);
 
-void init_mouse();
-void shutdown_mouse();
+void mouse_init();
+void mouse_shutdown();
 
 #endif

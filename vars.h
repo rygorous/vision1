@@ -3,7 +3,7 @@
 
 #include <string>
 
-void init_vars();
+void vars_init();
 
 void dump_all_vars(); // debug
 

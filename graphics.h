@@ -76,8 +76,8 @@ extern Palette vga_pal;
 
 extern Palette palette_a, palette_b;
 
-void init_graphics();
-void shutdown_graphics();
+void graphics_init();
+void graphics_shutdown();
 
 PixelSlice load_rle_pixels(const Slice &data, int w, int h);
 PixelSlice load_rle_with_header(const Slice &data);
