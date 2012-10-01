@@ -3,8 +3,13 @@
 #include "util.h"
 #include "graphics.h"
 
+static const int DEPTH = 6;
+
 static PixelSlice s_hotspots;
-static PixelSlice s_wall[6];
+
+static PixelSlice s_wall[DEPTH];
+static PixelSlice s_corner[DEPTH];
+static PixelSlice s_deadend[DEPTH];
 
 static PixelSlice gfx_load(const Slice &s, const char *basename, int idx)
 {
@@ -24,15 +29,21 @@ void corridor_init()
     s_hotspots = load_hot(read_file("grafix/corri.hot"));
     Slice lib = read_file("grafix/wand01.gra");
 
-    for (int i=0; i < ARRAY_COUNT(s_wall); i++)
+    for (int i=0; i < DEPTH; i++) {
         s_wall[i] = gfx_load(lib, "WAND", i);
+        s_corner[i] = gfx_load(lib, "ECKE", i);
+        s_deadend[i] = gfx_load(lib, "FRONTAL", i);
+    }
 }
 
 void corridor_shutdown()
 {
     s_hotspots = PixelSlice();
-    for (int i=0; i < ARRAY_COUNT(s_wall); i++)
+    for (int i=0; i < ARRAY_COUNT(s_wall); i++) {
         s_wall[i] = PixelSlice();
+        s_corner[i] = PixelSlice();
+        s_deadend[i] = PixelSlice();
+    }
 }
 
 void corridor_start()
@@ -47,8 +58,19 @@ void corridor_render()
     // fill background black
     solid_fill(vga_screen, 0);
 
-    for (int i=0; i < 6; i++) {
-        blit_transparent_shrink(vga_screen, 160, 32, s_wall[i], 1, false);
+    int deadend = 3;
+    if (deadend >= 0) {
+        blit_transparent_shrink(vga_screen, 160, 32, s_deadend[deadend], 1, true);
+        blit_transparent_shrink(vga_screen, 160, 32, s_deadend[deadend], 1, false);
+
+        blit_transparent_shrink(vga_screen, 160, 32, s_wall[deadend], 1, true);
+        blit_transparent_shrink(vga_screen, 160, 32, s_corner[deadend], 1, true);
+        blit_transparent_shrink(vga_screen, 160, 32, s_wall[deadend], 1, false);
+        blit_transparent_shrink(vga_screen, 160, 32, s_corner[deadend], 1, false);
+    }
+
+    for (int i=deadend+1; i < 6; i++) {
         blit_transparent_shrink(vga_screen, 160, 32, s_wall[i], 1, true);
+        blit_transparent_shrink(vga_screen, 160, 32, s_wall[i], 1, false);
     }
 }
