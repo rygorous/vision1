@@ -108,12 +108,15 @@ static void scroll_tick()
     if (!scroll_auto)
         return;
 
-    if (mouse_x < scroll_border) {
+    int new_x = scroll_x;
+    if (mouse_x < scroll_border)
+        new_x = std::max(scroll_x - 1, scroll_x_min);
+    else if (mouse_x >= vga_screen.width() - scroll_border)
+        new_x = std::min(scroll_x + 1, scroll_x_max);
+
+    if (new_x != scroll_x) {
         print_clear();
-        scroll_x = std::max(scroll_x - 1, scroll_x_min);
-    } else if (mouse_x >= vga_screen.width() - scroll_border) {
-        print_clear();
-        scroll_x = std::min(scroll_x + 1, scroll_x_max);
+        scroll_x = new_x;
     }
 }
 
@@ -845,8 +848,8 @@ static void cmd_def()
 {
     int which = int_value_word();
     std::string code = str_word();
-    if (!code.empty())
-        cursor_define(which, code[0]);
+    for (size_t i=0; i < code.size(); i++)
+        cursor_define(which + i, code[i]);
 }
 
 static void cmd_hot()
