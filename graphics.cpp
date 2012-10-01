@@ -111,6 +111,18 @@ PixelSlice PixelSlice::clone()
     return s;
 }
 
+PixelSlice PixelSlice::reinterpret(int neww, int newh)
+{
+    assert(w == stride);
+    assert(neww * newh <= w * h);
+
+    PixelSlice s = *this;
+    s.w = neww;
+    s.h = newh;
+    s.stride = neww;
+    return s;
+}
+
 PixelSlice PixelSlice::make_resized(int neww, int newh)
 {
     PixelSlice s = black(neww, newh);
@@ -214,6 +226,12 @@ PixelSlice load_rle_pixels(const Slice &s, int w, int h)
 PixelSlice load_rle_with_header(const Slice &s)
 {
     return load_rle_pixels(s(4), little_u16(&s[0]), little_u16(&s[2]));
+}
+
+PixelSlice load_hot(const Slice &s)
+{
+    PixelSlice p = load_rle_with_header(s);
+    return p.reinterpret(p.width() / 2, p.height() * 2);
 }
 
 static int decode_delta(U8 *dst, const U8 *p)

@@ -32,6 +32,7 @@ public:
     PixelSlice slice(int x0, int y0, int x1, int y1) { return (PixelSlice) ((const PixelSlice&) *this).slice(x0, y0, x1, y1); }
 
     PixelSlice clone();
+    PixelSlice reinterpret(int neww, int newh);
     PixelSlice make_resized(int neww, int newh);
 
     const U8 *row(int y) const          { return pixels + y * stride; }
@@ -81,6 +82,7 @@ void graphics_shutdown();
 
 PixelSlice load_rle_pixels(const Slice &data, int w, int h);
 PixelSlice load_rle_with_header(const Slice &data);
+PixelSlice load_hot(const Slice &data);
 PixelSlice load_delta_pixels(const Slice &data);
 
 void set_palette();

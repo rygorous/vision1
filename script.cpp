@@ -194,17 +194,8 @@ static PixelSlice hotspots;
 
 static void hotspot_load(const char *filename, int screen)
 {
-    PixelSlice raw_img = load_rle_with_header(read_file(filename));
-
-    // hotspot images have a weird layout; reshuffle them.
-    assert(raw_img.width() == 320);
-    assert(raw_img.height() == 50);
-
-    PixelSlice img = PixelSlice::make(160, 56);
-    for (int y=0; y < 56; y++) {
-        int srcy = y + SCROLL_WINDOW_Y0 / 2;
-        memcpy(img.row(y), raw_img.ptr((srcy & 1) * 160, srcy >> 1), 160);
-    }
+    PixelSlice img = load_hot(read_file(filename));
+    img = img.slice(0, SCROLL_WINDOW_Y0/2, img.width(), SCROLL_WINDOW_Y1/2);
 
     // save it!
     if (screen == 0)
