@@ -20,7 +20,7 @@
 
 static HWND hWnd = 0;
 
-void error_exit(const char *fmt, ...)
+void panic(const char *fmt, ...)
 {
 	char buffer[2048];
 	va_list arg;
@@ -171,7 +171,7 @@ static void createWindow(HINSTANCE hInstance)
 	wc.lpszMenuName = NULL;
 	wc.lpszClassName = "ryg.vision1";
 	if (!RegisterClass(&wc))
-		error_exit("RegisterClass failed!\n");
+		panic("RegisterClass failed!\n");
 
     DWORD style = WS_OVERLAPPEDWINDOW;
     RECT r = { 0, 0, vga_screen.width()*2, vga_screen.height()*2 };
@@ -180,7 +180,7 @@ static void createWindow(HINSTANCE hInstance)
 	hWnd = CreateWindow("ryg.vision1", "vision1", style, CW_USEDEFAULT, CW_USEDEFAULT,
 		r.right - r.left, r.bottom - r.top, NULL, NULL, hInstance, NULL);
 	if (!hWnd)
-		error_exit("CreateWindow failed!\n");
+		panic("CreateWindow failed!\n");
 }
 
 static void init()

@@ -105,7 +105,7 @@ void Conditions::parse_vb(const Slice &vbfile)
         line = line(1);
         int index = scan_int(line);
         if (index < 0 || index >= NUM) {
-            error_exit("vb: index=%d out of range!", index);
+            panic("vb: index=%d out of range!", index);
             continue;
         }
 
@@ -124,7 +124,7 @@ void Conditions::parse_vb(const Slice &vbfile)
             // TODO: 'a' (add var)
 
         default:
-            error_exit("vb: don't understand line '%.*s'\n", orig_line.len(), &orig_line[0]);
+            panic("vb: don't understand line '%.*s'\n", orig_line.len(), &orig_line[0]);
             break;
         }
     }

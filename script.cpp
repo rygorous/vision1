@@ -329,7 +329,7 @@ static int need_int_literal(const Slice &s)
 {
     int i;
     if (!int_literal(s, i))
-        error_exit("int literal expected: \"%s\"", to_string(s).c_str());
+        panic("int literal expected: \"%s\"", to_string(s).c_str());
     return i;
 }
 
@@ -352,7 +352,7 @@ static std::string str_value(const Slice &value)
 {
     if (value[0] == '\'') { // literal
         if (value[value.len()-1] != '\'')
-            error_exit("bad string literal!");
+            panic("bad string literal!");
 
         return to_string(value(1, value.len()-1));
     } else
@@ -430,7 +430,7 @@ static Slice scan_bool_tok()
             pos++;
 
         if (pos == line.len())
-            error_exit("string continued past end of line");
+            panic("string continued past end of line");
         else
             pos++; // quote is part of the string!
     } else {
@@ -452,7 +452,7 @@ static std::string bool_str_value(const Slice &value)
 {
     if (value[0] == '\'') { // quoted literal
        if (value[value.len()-1] != '\'')
-            error_exit("bad string literal!");
+            panic("bad string literal!");
 
         return to_string(value(1, value.len()-1));
     } else if (value[value.len()-1] == '$') // string variable
@@ -477,7 +477,7 @@ static bool eval_bool_expr1(Slice &tok)
         else if (is_equal(op, "#"))
             return lhs != rhs;
         else
-            error_exit("unknown relational op (str): %s", to_string(op).c_str());
+            panic("unknown relational op (str): %s", to_string(op).c_str());
     } else { // assume integers
         int lhs = int_value(tok);
         Slice op = scan_bool_tok();
@@ -494,7 +494,7 @@ static bool eval_bool_expr1(Slice &tok)
             else if (is_equal(op, ">"))
                 return lhs > rhs;
             else
-                error_exit("unknown relational op (int): %s", to_string(op).c_str());
+                panic("unknown relational op (int): %s", to_string(op).c_str());
         } else { // just a single variable
             tok = op;
             return lhs != 0;
@@ -549,7 +549,7 @@ static bool eval_bool_expr0(Slice &tok)
         } else if (!tok.len() || is_equal(tok, "^"))
             break;
         else
-            error_exit("unknown boolean op: %s", to_string(tok).c_str());
+            panic("unknown boolean op: %s", to_string(tok).c_str());
     }
 
     return result;
@@ -701,7 +701,7 @@ static void cmd_fade()
             frame();
         }
     } else
-        error_exit("unknown fade direction");
+        panic("unknown fade direction");
 }
 
 static void cmd_exec()
@@ -749,7 +749,7 @@ static void cmd_jump()
             return; // found our label and scan is in the right place
     }
 
-    error_exit("label '%s' not found in script!\n", to_string(label).c_str());
+    panic("label '%s' not found in script!\n", to_string(label).c_str());
 }
 
 static void cmd_definelabel()
@@ -1117,12 +1117,12 @@ void game_script_tick()
             s_mode = GM_CORRIDOR;
             corridor_render();
         } else
-            error_exit("bad game command: \"%s\"", s_command.c_str());
+            panic("bad game command: \"%s\"", s_command.c_str());
     } else {
         switch (s_mode) {
         case GM_ROOM:       game_script_tick_room(); break;
         case GM_CORRIDOR:   game_script_tick_corridor(); break;
-        default:            error_exit("bad state"); break;
+        default:            panic("bad state"); break;
         }
     }
 }

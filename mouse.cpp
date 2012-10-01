@@ -78,7 +78,7 @@ void mouse_init()
             U8 type;
             int offs = find_gra_item(gfx, cursor_desc[i].filename, &type);
             if (offs == -1 || type != 5)
-                error_exit("error finding cursor image '%s'\n", cursor_desc[i].filename);
+                panic("error finding cursor image '%s'\n", cursor_desc[i].filename);
 
             img = load_delta_pixels(gfx(offs));
         }

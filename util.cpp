@@ -20,7 +20,7 @@ struct Buffer
         nrefs = 0;
 
         if (!data)
-            error_exit("out of memory");
+            panic("out of memory");
     }
 
     ~Buffer()
@@ -162,7 +162,7 @@ Slice read_file(const char *filename)
 {
     Slice s = try_read_file(filename);
     if (!s)
-        error_exit("%s not found", filename);
+        panic("%s not found", filename);
     return s;
 }
 
@@ -170,7 +170,7 @@ void write_file(const char *filename, const void *buf, int size)
 {
     FILE *f = fopen(filename, "wb");
     if (!f)
-        error_exit("couldn't open %s for writing", filename);
+        panic("couldn't open %s for writing", filename);
 
     fwrite(buf, size, 1, f);
     fclose(f);
@@ -191,7 +191,7 @@ Slice read_xored(const char *filename)
 {
     Slice s = try_read_xored(filename);
     if (!s)
-        error_exit("%s not found", filename);
+        panic("%s not found", filename);
     return s;
 }
 

@@ -23,6 +23,6 @@ struct PalEntry {
 
 typedef PalEntry Palette[256];
 
-void error_exit(const char *fmt, ...);
+void panic(const char *fmt, ...);
 
 #endif

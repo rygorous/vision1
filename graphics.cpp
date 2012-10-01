@@ -29,7 +29,7 @@ struct PixelBuffer
         nrefs = 0;
         
         if (!pixels)
-            error_exit("out of memory");
+            panic("out of memory");
     }
 
     ~PixelBuffer()
@@ -555,7 +555,7 @@ void MegaAnimation::render(PixelSlice &target)
     sprintf(name, "%s%d", nameprefix, cur_frame);
     int offs = find_gra_item(grafile, name, &type);
     if (offs < 0 || type != 5)
-        error_exit("bad anim! (prefix=%s frame=%d offs=%d type=%d)", nameprefix, cur_frame, offs, type);
+        panic("bad anim! (prefix=%s frame=%d offs=%d type=%d)", nameprefix, cur_frame, offs, type);
 
     blit_transparent_shrink(target, posx, posy, load_delta_pixels(grafile(offs)), scale, flip != 0);
 }
