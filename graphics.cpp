@@ -71,7 +71,7 @@ PixelSlice PixelSlice::make(int w, int h)
 PixelSlice PixelSlice::black(int w, int h)
 {
     PixelSlice p = make(w, h);
-    memset(p.row(0), 0, w*h);
+    solid_fill(p, 0);
     return p;
 }
 
@@ -116,6 +116,12 @@ PixelSlice PixelSlice::make_resized(int neww, int newh)
     PixelSlice s = black(neww, newh);
     blit(s, 0, 0, *this);
     return s;
+}
+
+void solid_fill(PixelSlice &dest, int color)
+{
+    for (int y=0; y < dest.height(); y++)
+        memset(dest.row(y), color, dest.width());
 }
 
 static bool clipblit(Rect *sr, int dx, int dy, const PixelSlice &dest, const PixelSlice &src, int shrink=1)

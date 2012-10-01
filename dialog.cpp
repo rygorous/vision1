@@ -92,7 +92,7 @@ void Conditions::parse_vb(const Slice &vbfile)
     if (!vbfile.len())
         return;
         
-    print_hex("vbfile", vbfile);
+    //print_hex("vbfile", vbfile);
     Slice scan = vbfile;
     while (scan.len()) {
         Slice line = chop_line(scan);

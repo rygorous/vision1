@@ -699,7 +699,7 @@ static void cmd_load()
 
 static void cmd_black()
 {
-    memset(vga_screen, 0, sizeof(vga_screen));
+    solid_fill(vga_screen, 0);
     memset(&vga_pal, 0, sizeof(vga_pal));
 }
 
@@ -960,27 +960,6 @@ void game_frame()
 {
     render_anim();
     tick_anim();
-    scroll_tick();
-
-    int hot = hotspot_get(mouse_x, mouse_y);
-    MouseCursor cursor = hot2cursor[hot];
-    if (hot == hotspot_last && cursor_override)
-        cursor = cursor_override;
-
-    set_mouse_cursor(cursor);
-
-#if 0 // hotspot debug
-    PixelSlice target = scroll_window ? scroll_window : vga_screen;
-    int x0 = scroll_window ? scroll_x : 0;
-
-    for (int y=SCROLL_WINDOW_Y0; y < SCROLL_WINDOW_Y1; y++) {
-        for (int x=0; x < 320; x++) {
-            int hot = hotspot_get(x, y);
-            if (hot)
-                *target.ptr(x + x0, y) = 1;
-        }
-    }
-#endif
 
     // time handling etc. should also go here
 
@@ -1010,6 +989,28 @@ void game_script_tick()
         } else
             error_exit("bad game command: \"%s\"", s_command.c_str());
     } else {
+        int hot = hotspot_get(mouse_x, mouse_y);
+        MouseCursor cursor = hot2cursor[hot];
+        if (hot == hotspot_last && cursor_override)
+            cursor = cursor_override;
+
+        set_mouse_cursor(cursor);
+
+    #if 0 // hotspot debug
+        PixelSlice target = scroll_window ? scroll_window : vga_screen;
+        int x0 = scroll_window ? scroll_x : 0;
+
+        for (int y=SCROLL_WINDOW_Y0; y < SCROLL_WINDOW_Y1; y++) {
+            for (int x=0; x < 320; x++) {
+                int hot = hotspot_get(x, y);
+                if (hot)
+                    *target.ptr(x + x0, y) = 1;
+            }
+        }
+    #endif
+
+        scroll_tick();
+
         static int old_button;
         int button_down = mouse_button & ~old_button;
         old_button = mouse_button;

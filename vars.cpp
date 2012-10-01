@@ -42,6 +42,9 @@ void init_vars()
     set_var_int("hot", 999);
     set_var_str("key$", "");
     set_var_str("multi$", "");
+
+    set_var_int("fred", 0);
+    set_var_int("axeltreff", 0);
 }
 
 void dump_all_vars()
