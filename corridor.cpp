@@ -2,14 +2,26 @@
 #include "common.h"
 #include "util.h"
 #include "graphics.h"
+#include <assert.h>
+
+enum CorridorBlock
+{
+    CB_FREE,
+    CB_WALL,
+    CB_DOOR,
+};
 
 static const int DEPTH = 6;
 
 static PixelSlice s_hotspots;
 
-static PixelSlice s_wall[DEPTH];
+static PixelSlice s_wall_side[DEPTH];
+static PixelSlice s_wall_ahead[DEPTH];
+static PixelSlice s_door_side[DEPTH];
+static PixelSlice s_door_ahead[DEPTH];
 static PixelSlice s_corner[DEPTH];
-static PixelSlice s_deadend[DEPTH];
+static PixelSlice s_fork[DEPTH];
+static PixelSlice s_empty;
 
 static PixelSlice gfx_load(const Slice &s, const char *basename, int idx)
 {
@@ -30,19 +42,25 @@ void corridor_init()
     Slice lib = read_file("grafix/wand01.gra");
 
     for (int i=0; i < DEPTH; i++) {
-        s_wall[i] = gfx_load(lib, "WAND", i);
+        s_wall_side[i] = gfx_load(lib, "WAND", i);
+        s_wall_ahead[i] = gfx_load(lib, "FRONTAL", i);
+        s_door_side[i] = (i >= 1 && i <= 4) ? gfx_load(lib, "TUER", i) : s_wall_side[i];
+        s_door_ahead[i] = gfx_load(lib, "FTUER", i);
         s_corner[i] = gfx_load(lib, "ECKE", i);
-        s_deadend[i] = gfx_load(lib, "FRONTAL", i);
+        s_fork[i] = gfx_load(lib, "GANG", i);
     }
 }
 
 void corridor_shutdown()
 {
     s_hotspots = PixelSlice();
-    for (int i=0; i < ARRAY_COUNT(s_wall); i++) {
-        s_wall[i] = PixelSlice();
+    for (int i=0; i < DEPTH; i++) {
+        s_wall_side[i] = PixelSlice();
+        s_wall_ahead[i] = PixelSlice();
+        s_door_side[i] = PixelSlice();
+        s_door_ahead[i] = PixelSlice();
         s_corner[i] = PixelSlice();
-        s_deadend[i] = PixelSlice();
+        s_fork[i] = PixelSlice();
     }
 }
 
@@ -53,24 +71,57 @@ void corridor_start()
     set_palette();
 }
 
+static void blit_corridor(const PixelSlice &what, bool flipx)
+{
+    static const int CX = 160, CY = 32;
+    blit_transparent_shrink(vga_screen, CX, CY, what, 1, flipx);
+}
+
 void corridor_render()
 {
+
     // fill background black
     solid_fill(vga_screen, 0);
 
-    int deadend = 3;
-    if (deadend >= 0) {
-        blit_transparent_shrink(vga_screen, 160, 32, s_deadend[deadend], 1, true);
-        blit_transparent_shrink(vga_screen, 160, 32, s_deadend[deadend], 1, false);
+    static const U8 map[7][3] = {
+        { CB_WALL, CB_WALL, CB_WALL },
+        { CB_WALL, CB_FREE, CB_WALL },
+        { CB_WALL, CB_FREE, CB_WALL },
+        { CB_WALL, CB_FREE, CB_DOOR },
+        { CB_WALL, CB_DOOR, CB_FREE },
+        { CB_FREE, CB_FREE, CB_WALL },
+        { CB_WALL, CB_FREE, CB_WALL },
+    };
 
-        blit_transparent_shrink(vga_screen, 160, 32, s_wall[deadend], 1, true);
-        blit_transparent_shrink(vga_screen, 160, 32, s_corner[deadend], 1, true);
-        blit_transparent_shrink(vga_screen, 160, 32, s_wall[deadend], 1, false);
-        blit_transparent_shrink(vga_screen, 160, 32, s_corner[deadend], 1, false);
-    }
+    for (int z=0; z<6; z++) { // depth *increases* towards viewer
+        int mapy = z + 1;
 
-    for (int i=deadend+1; i < 6; i++) {
-        blit_transparent_shrink(vga_screen, 160, 32, s_wall[i], 1, true);
-        blit_transparent_shrink(vga_screen, 160, 32, s_wall[i], 1, false);
+        for (int lr=-1; lr <= 1; lr += 2) {
+            bool flipx = lr < 0;
+
+            // blocked past this depth?
+            int front = map[mapy-1][1];
+            if (front != CB_FREE)
+                blit_corridor(s_wall_ahead[z], flipx);
+
+            // handle side
+            int side = map[mapy][1+lr];
+            if (side == CB_FREE) {
+                if (front == CB_FREE)
+                    blit_corridor(s_fork[z], flipx);
+            } else {
+                blit_corridor(s_wall_side[z], flipx);
+                if (side == CB_DOOR)
+                    blit_corridor(s_door_side[z], flipx);
+            }
+
+            // fix up corners
+            if (map[mapy-1][1] != CB_FREE && map[mapy][1+lr] != CB_FREE)
+                blit_corridor(s_corner[z], flipx);
+
+            // draw door on front wall
+            if (front == CB_DOOR)
+                blit_corridor(s_door_ahead[z], flipx);
+        }
     }
 }
