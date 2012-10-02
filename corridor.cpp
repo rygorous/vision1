@@ -109,21 +109,16 @@ void corridor_render()
             int front = map[mapy-1][1];
             int side = map[mapy][1+lr];
 
-            if (side == CB_FREE && front != CB_FREE) {
-                // turn to the side: draw wall over fork
+            if (side == CB_FREE) // if turn is free, draw fork
                 blit_corridor(s_fork[z], flipx);
-                blit_corridor(s_wall_ahead[z], flipx);
-            } else if (front != CB_FREE)
+
+            if (front != CB_FREE)
                 blit_corridor(s_wall_ahead[z], flipx);
 
             // handle side
             if (side == CB_FREE) {
-                if (front == CB_FREE) // both free: use unmodified fork
-                    blit_corridor(s_fork[z], flipx);
-                else {
-                    if (map[mapy-1][1+lr] == CB_DOOR) // add door decal to side
-                        blit_corridor(s_door_inturn[z], flipx);
-                }
+                if (map[mapy-1][1+lr] == CB_DOOR) // add door decal to side
+                    blit_corridor(s_door_inturn[z], flipx);
             } else {
                 blit_corridor(s_wall_side[z], flipx);
                 if (side == CB_DOOR)
