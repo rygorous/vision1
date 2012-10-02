@@ -181,10 +181,14 @@ void blit_transparent_shrink(PixelSlice &dest, int dx, int dy, const PixelSlice 
     if (!clipblit(&sr, dx, dy, dest, src, shrink))
         return;
 
-    // todo flipX
     int w = (sr.x1 - sr.x0) / shrink;
-    int stepx = flipX ? -shrink : shrink;
-    int sxstart = flipX ? sr.x1 : sr.x0;
+    int stepx = shrink;
+    int sxstart = sr.x0;
+    
+    if (flipX) {
+        stepx = -stepx;
+        sxstart = sr.x1;
+    }
 
     for (int sy=sr.y0; sy < sr.y1; sy += shrink) {
         U8 *d = dest.ptr(dx + sxstart/stepx, dy + sy/shrink);
