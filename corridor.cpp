@@ -11,6 +11,91 @@ enum CorridorBlock
     CB_DOOR,
 };
 
+// ---- level representation
+
+// look directions: (GANGD)
+// 0 = outside (+y)
+// 1 = inside (-y)
+// 2 = cw (-x)
+// 3 = ccw (+x)
+// in maps:
+// 00 = accessible
+// 07 = skip this column
+// 80 = blocked
+
+static const int NLEVELS = 50;
+static const int MAPW = 80;
+static const int MAPH = 25; // concentric circles
+
+static U8 map1[MAPH][MAPW];
+static U8 map2[MAPH][MAPW];
+
+static int decode_level_rle(U8 *dest, const Slice &src)
+{
+    int p = 0, q = 0;
+    while (q < MAPW*MAPH) {
+        int count = src[p++];
+        U8 val = src[p++];
+        while (count--)
+            dest[q++] = val;
+    }
+    assert(q == MAPW*MAPH);
+    return p;
+}
+
+static void debug_print_level()
+{
+    char buf[MAPW+1];
+    buf[MAPW] = 0;
+    
+    // column numbers
+    for (int x=1; x <= MAPW; x++)
+        buf[x-1] = (x % 10) ? ' ' : '0' + (x/10);
+    puts(buf);
+
+    for (int x=1; x <= MAPW; x++)
+        buf[x-1] = '0' + (x % 10);
+    puts(buf);
+    puts("");
+
+    // actual level
+    for (int y=0; y < MAPH; y++) {
+        for (int x=0; x < MAPW; x++) {
+            char ch = '?';
+            switch (map1[y][x]) {
+            case 0x00:  ch = '.'; break;    // can pass
+            case 0x01:  ch = '>'; break;    // door ccw?
+            case 0x02:  ch = '<'; break;    // door cw?
+            case 0x03:  ch = 'v'; break;    // door out?
+            case 0x04:  ch = '^'; break;    // door in?
+            case 0x07:  ch = ' '; break;    // warp to next
+            case 0x20:  ch = '!'; break;    // passable door?
+            case 0x12:  ch = 'a'; break;    // ???
+            case 0x13:  ch = 'b'; break;    // ???
+            case 0x14:  ch = 'c'; break;    // ???
+            case 0x80:  ch = '@'; break;    // obstructed
+            }
+            if (ch == '?')
+                __debugbreak();
+            buf[x] = ch;
+        }
+        puts(buf);
+    }
+}
+
+static void load_level(int level)
+{
+    Slice s = read_file("data/levels.dat");
+    Slice data = s(little_u16(&s[level*2]) + NLEVELS*2, little_u16(&s[(level+1)*2]) + NLEVELS*2);
+    
+    int offs = decode_level_rle(map1[0], data);
+    decode_level_rle(map2[0], data(offs));
+
+    debug_print_level();
+}
+
+// ---- rendering
+
 static const int DEPTH = 6;
 
 static PixelSlice s_hotspots;
@@ -53,6 +138,10 @@ void corridor_init()
         s_fork[i] = gfx_load(lib, "GANG", i);
         s_cover[i] = (i >= 2) ? gfx_load(lib, "ABDECK", i) : PixelSlice();
     }
+
+    // actual level number: ETAGE
+
+    load_level(34);
 }
 
 void corridor_shutdown()

@@ -280,35 +280,6 @@ int find_gra_item(const Slice &grafile, const char *name, U8 *type)
     return -1;
 }
 
-static void decode_level_rle(U8 *dest, U8 *&src)
-{
-    int offs = 0;
-    while (offs < 2000) {
-        int count = *src++;
-        U8 val = *src++;
-        while (count--)
-            dest[offs++] = val;
-    }
-}
-
-void decode_level(const char *filename, int level)
-{
-    Slice s = read_file(filename);
-    U8 *bytes = &s[0];
-    
-    int offs = little_u16(bytes + level*2);
-    int size = little_u16(bytes + level*2 + 2) - offs;
-    U8 *prle = bytes + 100 + offs;
-    U8 *pend = prle + size;
-
-    U8 levelData[2*2000];
-    decode_level_rle(levelData + 0*2000, prle);
-    decode_level_rle(levelData + 1*2000, prle);
-
-    write_file("out_level.dat", levelData, 2*2000);
-    write_file("script_level.dat", prle, pend - prle);
-}
-
 std::string to_string(const Slice &sl)
 {
     Slice &s = (Slice &)sl;

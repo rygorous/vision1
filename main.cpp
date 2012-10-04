@@ -204,17 +204,6 @@ static void init()
     //load_background("grafix/dock_l.pic");
     //load_background("grafix/dextras.mix");
 
-    decode_level("../game/data/levels.dat", 1);
-    // look directions: (GANGD)
-    // 0 = outside (+y)
-    // 1 = inside (-y)
-    // 2 = cw (-x)
-    // 3 = ccw (+x)
-    // in maps:
-    // 00 = accessible
-    // 07 = skip this column
-    // 80 = blocked
-
     Slice s = read_file("chars/silizian/face.frz");
 
     /*// use top 128 palette entries from .frz
