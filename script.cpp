@@ -244,10 +244,13 @@ static void cursor_reset()
         hot2cursor[i] = MC_NULL;
 }
 
-static void cursor_define(int which, char code)
+static void cursor_define(int base, const char *code)
 {
-    if (which >= 1 && which < ARRAY_COUNT(hot2cursor))
-        hot2cursor[which] = get_mouse_cursor_from_char(code);
+    for (int i=0; code[i]; i++) {
+        int which = base + i;
+        if (which >= 1 && which < ARRAY_COUNT(hot2cursor))
+            hot2cursor[which] = get_mouse_cursor_from_char(code[i]);
+    }
 }
 
 // ---- script low-level scanning
@@ -840,8 +843,7 @@ static void cmd_def()
 {
     int which = int_value_word();
     std::string code = str_word();
-    for (size_t i=0; i < code.size(); i++)
-        cursor_define(which + i, code[i]);
+    cursor_define(which, code.c_str());
 }
 
 static void cmd_hot()
@@ -1090,6 +1092,21 @@ static void game_script_tick_room()
 
 static void game_script_tick_corridor()
 {
+    int hot = hotspot_get(mouse_x, mouse_y);
+    MouseCursor cursor = hot2cursor[hot];
+    if (hot == hotspot_last && cursor_override)
+        cursor = cursor_override;
+
+    set_mouse_cursor(cursor);
+
+    static int old_button;
+    int button_down = mouse_button & ~old_button;
+    old_button = mouse_button;
+
+    if (button_down) {
+        corridor_click(cursor);
+        corridor_render();
+    }
 }
 
 void game_script_tick()
@@ -1105,7 +1122,12 @@ void game_script_tick()
             s_script = read_xored(filename.c_str());
             run_script(s_script, true);
         } else if (has_prefix(s_command, "gang ")) {
+            // command parsing?
+            s_command.clear();
+
             s_mode = GM_CORRIDOR;
+            hotspot_load("grafix/corri.hot", 0); // wrong img!!
+            cursor_define(1, "urvl");
             corridor_start();
             corridor_render();
         } else

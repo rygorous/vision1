@@ -3,13 +3,67 @@
 #include "util.h"
 #include "graphics.h"
 #include "vars.h"
+#include "mouse.h"
 #include <assert.h>
 
-enum CorridorBlock {
-    CB_FREE,
-    CB_WALL,
-    CB_DOOR,
+// ---- player position and direction
+
+// matches look direction (GANGD)
+enum Dir {
+    DIR_OUT = 0,    // out = +y
+    DIR_IN  = 1,    // in  = -y
+    DIR_CW  = 2,    // cw  = -x
+    DIR_CCW = 3,    // ccw = +x
 };
+
+enum Rot {
+    ROT_CCW,
+    ROT_CW,
+    ROT_U,
+};
+
+struct Pos {
+    int x, y;
+};
+
+static Dir rotate(Dir in, Rot how)
+{
+    static const Dir rot[3][4] = {
+        { DIR_CCW, DIR_CW,  DIR_OUT, DIR_IN  }, // ccw
+        { DIR_CW,  DIR_CCW, DIR_IN,  DIR_OUT }, // cw
+        { DIR_IN,  DIR_OUT, DIR_CCW, DIR_CW  }, // u-turn
+    };
+    return rot[how][in];
+}
+
+static int clamp(int x, int min, int max)
+{
+    return x < min ? min : x > max ? max : x;
+}
+
+static Pos player_pos()
+{
+    Pos p;
+    p.x = get_var_int("gangx") - 1; // game seems to use 1-based x but 0-based y?
+    p.y = get_var_int("gangy");
+    return p;
+}
+
+static void set_player_pos(const Pos &p)
+{
+    set_var_int("gangx", p.x + 1);
+    set_var_int("gangy", p.y);
+}
+
+static Dir player_dir()
+{
+    return (Dir)get_var_int("gangd");
+}
+
+static void set_player_dir(Dir which)
+{
+    set_var_int("gangd", which);
+}
 
 // ---- level representation
 
@@ -19,7 +73,12 @@ enum CorridorBlock {
 // 80 = blocked
 enum MapBlock {
     MB_FREE     = 0,
+    MB_DOOR_OUT = 1,
+    MB_DOOR_IN  = 2,
+    MB_DOOR_CW  = 3,
+    MB_DOOR_CCW = 4,
     MB_SKIP     = 7,
+    MB_DOOR     = 32,
     MB_SOLID    = 128,
 };
 
@@ -94,39 +153,6 @@ static void load_level(int level)
     debug_print_level();
 }
 
-// ---- player position and direction
-
-// matches look direction (GANGD)
-enum Dir {
-    DIR_OUT = 0,    // out = +y
-    DIR_IN  = 1,    // in  = -y
-    DIR_CW  = 2,    // cw  = -x
-    DIR_CCW = 3,    // ccw = +x
-};
-
-enum Rot {
-    ROT_CCW,
-    ROT_CW
-};
-
-struct Pos {
-    int x, y;
-};
-
-static Dir rotate(Dir in, Rot how)
-{
-    static const Dir rot[2][4] = {
-        { DIR_CCW, DIR_CW,  DIR_OUT, DIR_IN },  // ccw
-        { DIR_CW,  DIR_CCW, DIR_IN, DIR_OUT }   // cw
-    };
-    return rot[how][in];
-}
-
-static int clamp(int x, int min, int max)
-{
-    return x < min ? min : x > max ? max : x;
-}
-
 static Pos step(const Pos &in, Dir d)
 {
     static const int dx[4] = { 0, 0, -1, 1 };
@@ -134,6 +160,7 @@ static Pos step(const Pos &in, Dir d)
     Pos p = in;
     p.x = (p.x + dx[d]) % MAPW;
     p.y = clamp(p.y + dy[d], 0, MAPH-1);
+    return p;
 }
 
 static Pos advance(const Pos &in, Dir d)
@@ -145,24 +172,19 @@ static Pos advance(const Pos &in, Dir d)
     return p;
 }
 
-static Pos player_pos()
+static MapBlock map_at(const Pos &p)
 {
-    Pos p;
-    p.x = get_var_int("gangx") - 1; // game seems to use 1-based x but 0-based y?
-    p.y = get_var_int("gangy");
+    return (MapBlock)map1[p.y][p.x];
 }
 
-static void set_player_pos(const Pos &p)
+static bool is_visible_door(MapBlock b, Dir look_dir)
 {
-    set_var_int("gangx", p.x + 1);
-    set_var_int("gangy", p.y);
+    return (b == MB_DOOR_OUT + look_dir || b == MB_DOOR);
 }
 
 // ---- rendering
 
 static const int DEPTH = 6;
-
-static PixelSlice s_hotspots;
 
 static PixelSlice s_wall_side[DEPTH];
 static PixelSlice s_wall_ahead[DEPTH];
@@ -189,7 +211,6 @@ static PixelSlice gfx_load(const Slice &s, const char *basename, int idx)
 
 void corridor_init()
 {
-    s_hotspots = load_hot(read_file("grafix/corri.hot"));
     Slice lib = read_file("grafix/wand01.gra");
 
     for (int i=0; i < DEPTH; i++) {
@@ -206,7 +227,6 @@ void corridor_init()
 
 void corridor_shutdown()
 {
-    s_hotspots = PixelSlice();
     for (int i=0; i < DEPTH; i++) {
         s_wall_side[i] = PixelSlice();
         s_wall_ahead[i] = PixelSlice();
@@ -220,8 +240,7 @@ void corridor_shutdown()
 
 void corridor_start()
 {
-    Slice pal = read_file("grafix/corri01.pal");
-    memcpy(palette_a, &pal[0], sizeof(Palette));
+    load_background("grafix/corri01.pal");
     set_palette();
 
     solid_fill(vga_screen, 0);
@@ -236,52 +255,72 @@ static void blit_corridor(const PixelSlice &what, bool flipx)
 
 void corridor_render()
 {
-    static const U8 map[7][3] = {
-        { CB_WALL, CB_WALL, CB_WALL },
-        { CB_WALL, CB_FREE, CB_WALL },
-        { CB_WALL, CB_FREE, CB_WALL },
-        { CB_WALL, CB_FREE, CB_DOOR },
-        { CB_DOOR, CB_FREE, CB_FREE },
-        { CB_FREE, CB_FREE, CB_WALL },
-        { CB_WALL, CB_FREE, CB_WALL },
-    };
+    Pos pos = player_pos();
+    Dir look_dir = (Dir)get_var_int("gangd");
+    Dir rev_look = rotate(look_dir, ROT_U);
+    Dir lrdir[2];
+    lrdir[0] = rotate(look_dir, ROT_CCW);
+    lrdir[1] = rotate(look_dir, ROT_CW);
 
-    // unsolved:
+    // determine draw depth (i.e. distance to next blocking object)
+    int zmin = DEPTH-1;
+    while (zmin > 0) {
+        Pos next = advance(pos, look_dir);
+        if (map1[next.y][next.x] != MB_FREE)
+            break;
+        pos = next;
+        zmin--;
+    }
+
+    // unclear:
     // - cover model?
     // - door also depends on which side faces player, how does game encode this?
+    for (int z=zmin; z < DEPTH; z++) { // depth *increases* towards viewer
+        Pos frontpos = advance(pos, look_dir);
+        MapBlock front = map_at(frontpos);
 
-    for (int z=0; z<6; z++) { // depth *increases* towards viewer
-        int mapy = z + 1;
+        for (int lr=0; lr < 2; lr++) {
+            bool flipx = lr == 0;
+            MapBlock side = map_at(advance(pos, lrdir[lr]));
 
-        for (int lr=-1; lr <= 1; lr += 2) {
-            bool flipx = lr < 0;
-
-            int front = map[mapy-1][1];
-            int side = map[mapy][1+lr];
-
-            if (side == CB_FREE) // if turn is free, draw fork
+            if (side == MB_FREE) // if turn is free, draw fork
                 blit_corridor(s_fork[z], flipx);
 
-            if (front != CB_FREE)
+            if (front != MB_FREE)
                 blit_corridor(s_wall_ahead[z], flipx);
 
             // handle side
-            if (side == CB_FREE) {
-                if (map[mapy-1][1+lr] == CB_DOOR) // add door decal to side
+            if (side == MB_FREE) {
+                MapBlock frontside = map_at(advance(frontpos, lrdir[lr]));
+                if (is_visible_door(frontside, look_dir)) // add door decal to side
                     blit_corridor(s_door_inturn[z], flipx);
             } else {
                 blit_corridor(s_wall_side[z], flipx);
-                if (side == CB_DOOR)
+                if (is_visible_door(side, lrdir[lr]))
                     blit_corridor(s_door_side[z], flipx);
             }
 
             // fix up corners
-            if (front != CB_FREE && side != CB_FREE)
+            if (front != MB_FREE && side != MB_FREE)
                 blit_corridor(s_corner[z], flipx);
 
             // draw door on front wall
-            if (front == CB_DOOR)
+            if (is_visible_door(front, look_dir))
                 blit_corridor(s_door_ahead[z], flipx);
         }
+
+        pos = advance(pos, rev_look);
+    }
+}
+
+void corridor_click(int code)
+{
+    Dir dir = player_dir();
+
+    switch (code) {
+    case MC_FORWARD:    set_player_pos(advance(player_pos(), dir)); break;
+    case MC_TURNL:      set_player_dir(rotate(dir, ROT_CCW)); break;
+    case MC_TURNR:      set_player_dir(rotate(dir, ROT_CW)); break;
+    case MC_TURNU:      set_player_dir(rotate(dir, ROT_U)); break;
     }
 }

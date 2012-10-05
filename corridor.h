@@ -6,5 +6,6 @@ void corridor_shutdown();
 
 void corridor_start();
 void corridor_render();
+void corridor_click(int code);
 
 #endif
