@@ -45,6 +45,12 @@ void vars_init()
 
     set_var_int("fred", 0);
     set_var_int("axeltreff", 0);
+
+    // debug
+    set_var_int("etage", 34);
+    set_var_int("gangx", 20);
+    set_var_int("gangy", 1);
+    set_var_int("gangd", 0);
 }
 
 void dump_all_vars()

@@ -2,10 +2,10 @@
 #include "common.h"
 #include "util.h"
 #include "graphics.h"
+#include "vars.h"
 #include <assert.h>
 
-enum CorridorBlock
-{
+enum CorridorBlock {
     CB_FREE,
     CB_WALL,
     CB_DOOR,
@@ -13,15 +13,15 @@ enum CorridorBlock
 
 // ---- level representation
 
-// look directions: (GANGD)
-// 0 = outside (+y)
-// 1 = inside (-y)
-// 2 = cw (-x)
-// 3 = ccw (+x)
 // in maps:
 // 00 = accessible
 // 07 = skip this column
 // 80 = blocked
+enum MapBlock {
+    MB_FREE     = 0,
+    MB_SKIP     = 7,
+    MB_SOLID    = 128,
+};
 
 static const int NLEVELS = 50;
 static const int MAPW = 80;
@@ -94,6 +94,70 @@ static void load_level(int level)
     debug_print_level();
 }
 
+// ---- player position and direction
+
+// matches look direction (GANGD)
+enum Dir {
+    DIR_OUT = 0,    // out = +y
+    DIR_IN  = 1,    // in  = -y
+    DIR_CW  = 2,    // cw  = -x
+    DIR_CCW = 3,    // ccw = +x
+};
+
+enum Rot {
+    ROT_CCW,
+    ROT_CW
+};
+
+struct Pos {
+    int x, y;
+};
+
+static Dir rotate(Dir in, Rot how)
+{
+    static const Dir rot[2][4] = {
+        { DIR_CCW, DIR_CW,  DIR_OUT, DIR_IN },  // ccw
+        { DIR_CW,  DIR_CCW, DIR_IN, DIR_OUT }   // cw
+    };
+    return rot[how][in];
+}
+
+static int clamp(int x, int min, int max)
+{
+    return x < min ? min : x > max ? max : x;
+}
+
+static Pos step(const Pos &in, Dir d)
+{
+    static const int dx[4] = { 0, 0, -1, 1 };
+    static const int dy[4] = { 1, -1, 0, 0 };
+    Pos p = in;
+    p.x = (p.x + dx[d]) % MAPW;
+    p.y = clamp(p.y + dy[d], 0, MAPH-1);
+}
+
+static Pos advance(const Pos &in, Dir d)
+{
+    Pos p = in;
+    do {
+        p = step(p, d);
+    } while (map1[p.y][p.x] == MB_SKIP);
+    return p;
+}
+
+static Pos player_pos()
+{
+    Pos p;
+    p.x = get_var_int("gangx") - 1; // game seems to use 1-based x but 0-based y?
+    p.y = get_var_int("gangy");
+}
+
+static void set_player_pos(const Pos &p)
+{
+    set_var_int("gangx", p.x + 1);
+    set_var_int("gangy", p.y);
+}
+
 // ---- rendering
 
 static const int DEPTH = 6;
@@ -138,10 +202,6 @@ void corridor_init()
         s_fork[i] = gfx_load(lib, "GANG", i);
         s_cover[i] = (i >= 2) ? gfx_load(lib, "ABDECK", i) : PixelSlice();
     }
-
-    // actual level number: ETAGE
-
-    load_level(34);
 }
 
 void corridor_shutdown()
@@ -165,6 +225,7 @@ void corridor_start()
     set_palette();
 
     solid_fill(vga_screen, 0);
+    load_level(get_var_int("etage"));
 }
 
 static void blit_corridor(const PixelSlice &what, bool flipx)
