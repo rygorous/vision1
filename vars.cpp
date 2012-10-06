@@ -1,19 +1,11 @@
 #include "common.h"
 #include "vars.h"
+#include "util.h"
 #include <ctype.h>
 #include <unordered_map>
 
 static std::unordered_map<std::string, int> int_vars;
 static std::unordered_map<std::string, std::string> str_vars;
-
-static std::string canonical(const std::string &in)
-{
-    std::string s = in;
-    for (size_t i=0; i < s.size(); i++)
-        s[i] = tolower(s[i]);
-
-    return s;
-}
 
 void vars_init()
 {
@@ -36,7 +28,7 @@ void vars_init()
     set_var_int("sympa", 0);
     set_var_int("kaution", 100);
     set_var_int("robot", 0);
-    set_var_int("st", 1);
+    set_var_int("st", 0);
     set_var_int("morgen", 0);
     set_var_int("puzzle", 0);
     set_var_int("hot", 999);
@@ -64,7 +56,7 @@ void dump_all_vars()
 
 int get_var_int(const std::string &name)
 {
-    auto iter = int_vars.find(canonical(name));
+    auto iter = int_vars.find(tolower(name));
     if (iter == int_vars.end())
         panic("variable not found: %s", name.c_str());
     return iter->second;
@@ -72,12 +64,12 @@ int get_var_int(const std::string &name)
 
 void set_var_int(const std::string &name, int value)
 {
-    int_vars[canonical(name)] = value;
+    int_vars[tolower(name)] = value;
 }
 
 int *get_var_int_ptr(const std::string &name)
 {
-    auto iter = int_vars.find(canonical(name));
+    auto iter = int_vars.find(tolower(name));
     if (iter == int_vars.end())
         panic("variable not found: %s", name.c_str());
     return &iter->second;
@@ -85,7 +77,7 @@ int *get_var_int_ptr(const std::string &name)
 
 std::string get_var_str(const std::string &name)
 {
-    auto iter = str_vars.find(canonical(name));
+    auto iter = str_vars.find(tolower(name));
     if (iter == str_vars.end())
         panic("variable not found: %s", name.c_str());
     return iter->second;
@@ -93,16 +85,13 @@ std::string get_var_str(const std::string &name)
 
 void set_var_str(const std::string &name, const std::string &value)
 {
-    str_vars[canonical(name)] = value;
+    str_vars[tolower(name)] = value;
 }
 
 std::string get_var_as_str(const std::string &name)
 {
     if (name.size() && name.back() == '$') // string var
         return get_var_str(name);
-    else { // int var
-        char buf[32];
-        sprintf(buf, "%02d", get_var_int(name));
-        return std::string(buf);
-    }
+    else // int var
+        return strf("%02d", get_var_int(name));
 }

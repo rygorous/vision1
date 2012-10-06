@@ -186,10 +186,8 @@ void Dialog::load(const char *dlgname)
 {
     cond.reset();
 
-    char filename[128];
-    sprintf(filename, "chars/%s/%s.cm", charname.c_str(), dlgname);
-
-    Slice file = read_xored(filename);
+    std::string filename = strf("chars/%s/%s.cm", charname.c_str(), dlgname);
+    Slice file = read_xored(filename.c_str());
     int dirwords = little_u16(&file[0]);
     int datasize = little_u16(&file[2]);
     root = little_u16(&file[4]);
@@ -198,8 +196,8 @@ void Dialog::load(const char *dlgname)
         dir[i] = little_u16(&file[i*2]);
     data = file(dirwords*2, dirwords*2+datasize);
 
-    sprintf(filename, "chars/%s/%s.vb", charname.c_str(), dlgname);
-    cond.parse_vb(try_read_xored(filename));
+    filename = strf("chars/%s/%s.vb", charname.c_str(), dlgname);
+    cond.parse_vb(try_read_xored(filename.c_str()));
 }
 
 int Dialog::get_root() const
@@ -311,9 +309,8 @@ void Dialog::debug_dump_all()
 
 static void display_face(const char *charname, bool flipped, int scale)
 {
-    char filename[128];
-    sprintf(filename, "chars/%s/face.frz", charname);
-    Slice s = read_file(filename);
+    std::string filename = strf("chars/%s/face.frz", charname);
+    Slice s = read_file(filename.c_str());
 
     // use top 128 palette entries from .frz
     // but keep topmost 8 as they are (used for text)
@@ -518,9 +515,8 @@ void run_dialog(const char *charname, const char *dlgname)
 
     display_face(charname, flipped, scale);
 
-    char filename[128];
-    sprintf(filename, "chars/%s/sprech.ani", charname);
-    Animation *mouth = new_big_anim(filename, false);
+    std::string filename = strf("chars/%s/sprech.ani", charname);
+    Animation *mouth = new_big_anim(filename.c_str(), false);
 
     Dialog dlg(charname);
     dlg.load(dlgname);

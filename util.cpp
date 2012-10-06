@@ -3,6 +3,7 @@
 #include "util.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <assert.h>
 #include <ctype.h>
@@ -96,6 +97,20 @@ PascalStr::PascalStr(const U8 *pstr)
 PascalStr::~PascalStr()
 {
     delete[] data;
+}
+
+std::string strf(const char *fmt, ...)
+{
+    char buf[1024];
+    va_list arg;
+    va_start(arg, fmt);
+    int nchars = vsnprintf(buf, sizeof(buf), fmt, arg);
+    va_end(arg);
+
+    if (nchars < 0 || nchars >= sizeof(buf))
+        panic("strf: buffer size insufficient");
+
+    return std::string(buf);
 }
 
 std::string tolower(const std::string &s)

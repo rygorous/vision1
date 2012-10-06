@@ -572,9 +572,8 @@ void MegaAnimation::render(PixelSlice &target)
         return;
 
     U8 type;
-    char name[32];
-    sprintf(name, "%s%d", nameprefix, cur_frame);
-    int offs = find_gra_item(grafile, name, &type);
+    std::string name = strf("%s%d", nameprefix, cur_frame);
+    int offs = find_gra_item(grafile, name.c_str(), &type);
     if (offs < 0 || type != 5)
         panic("bad anim! (prefix=%s frame=%d offs=%d type=%d)", nameprefix, cur_frame, offs, type);
 

@@ -198,11 +198,9 @@ static PixelSlice s_empty;
 
 static PixelSlice gfx_load(const Slice &s, const char *basename, int idx)
 {
-    char name[16];
     U8 type;
-    sprintf(name, "%s%d", basename, idx);
-
-    int offs = find_gra_item(s, name, &type);
+    std::string name = strf("%s%d", basename, idx);
+    int offs = find_gra_item(s, name.c_str(), &type);
     if (offs < 0 || type != 5)
         panic("bad graphics for corridor!");
 
@@ -240,11 +238,19 @@ void corridor_shutdown()
 
 void corridor_start()
 {
-    load_background("grafix/corri01.pal");
-    set_palette();
-
     solid_fill(vga_screen, 0);
     load_level(get_var_int("etage"));
+
+    // determine which palette to load
+    int pal = map2[0][22]; // no idea why this one.
+    int hour = get_var_int("st");
+    if (hour >= 1 && hour <= 5)
+        pal = 98;
+
+    std::string filename = strf("grafix/palette.%d", pal);
+    Slice data = read_file(filename.c_str());
+    memcpy(palette_a, &data[0], sizeof(Palette));
+    set_palette();
 }
 
 static void blit_corridor(const PixelSlice &what, bool flipx)

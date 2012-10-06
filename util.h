@@ -42,6 +42,7 @@ struct PascalStr {
     char *data;
 };
 
+std::string strf(const char *fmt, ...);
 std::string tolower(const std::string &s);
 bool has_suffix(const char *str, const char *suffix); // case insensitive
 char *replace_ext(const char *filename, const char *newext);
