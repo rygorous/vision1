@@ -54,7 +54,6 @@ Slice try_read_xored(const char *filename);
 Slice read_xored(const char *filename);
 
 int little_u16(const U8 *p);
-void decrypt(U8 *buffer, int nbytes, int *start);
 
 void print_hex(const char *name, const Slice &what, int bytes_per_line=16);
 void list_gra_contents(const Slice &grafile); // for debugging

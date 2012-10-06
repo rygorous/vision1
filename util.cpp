@@ -191,6 +191,20 @@ void write_file(const char *filename, const void *buf, int size)
     fclose(f);
 }
 
+static void dexor(U8 *buffer, int nbytes, int *start)
+{
+    if (buffer[0] == 0x0a && buffer[1] == 0x00) // already de-xored
+        *start = 2;
+    else if (buffer[0] == 0x5c) {
+        U8 key = buffer[1];
+        for (int i=0; i < nbytes; i++)
+            buffer[i] ^= key;
+
+        *start = 2;
+    } else
+        *start = 0;
+}
+
 Slice try_read_xored(const char *filename)
 {
     Slice s = try_read_file(filename);
@@ -198,7 +212,7 @@ Slice try_read_xored(const char *filename)
         return s;
 
     int start;
-    decrypt(&s[0], s.len(), &start);
+    dexor(&s[0], s.len(), &start);
     return s(start);
 }
 
@@ -215,20 +229,6 @@ Slice read_xored(const char *filename)
 int little_u16(const U8 *p)
 {
     return p[0] + p[1]*256;
-}
-
-void decrypt(U8 *buffer, int nbytes, int *start)
-{
-    if (buffer[0] == 0x0a && buffer[1] == 0x00) // already de-xored
-        *start = 2;
-    else if (buffer[0] == 0x5c) {
-        U8 key = buffer[1];
-        for (int i=0; i < nbytes; i++)
-            buffer[i] ^= key;
-
-        *start = 2;
-    } else
-        *start = 0;
 }
 
 static bool is_printable(char ch)
