@@ -260,6 +260,7 @@ int main(int argc, char **argv)
     //game_command("welt init");
     //game_command("welt 08360900");
     //game_command("welt dextras");
+    //game_command("welt snack");
     game_command("gang #");
 
     try {

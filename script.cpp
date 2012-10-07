@@ -181,7 +181,7 @@ static void print_text(const char *str)
     while (*str) {
         int len = print_getlinelen(str);
         int w = bigfont->str_width(str, len);
-        bigfont->print(screen, (320 - w) / 2, y, str);
+        bigfont->print(screen, (320 - w) / 2, y, str, len);
 
         y += 10;
         str += len;

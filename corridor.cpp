@@ -191,56 +191,123 @@ static bool is_visible_door(MapBlock b, Dir look_dir)
 
 // ---- rendering
 
-static const int DEPTH = 6;
+class CorridorGfx {
+    static const int DEPTH = 6;
 
-static PixelSlice s_wall_side[DEPTH];
-static PixelSlice s_wall_ahead[DEPTH];
-static PixelSlice s_door_side[DEPTH];
-static PixelSlice s_door_ahead[DEPTH];
-static PixelSlice s_door_inturn[DEPTH];
-static PixelSlice s_corner[DEPTH];
-static PixelSlice s_fork[DEPTH];
-static PixelSlice s_cover[DEPTH];
-static PixelSlice s_empty;
+    // building blocks
+    PixelSlice wall_side[DEPTH];
+    PixelSlice wall_ahead[DEPTH];
+    PixelSlice door_side[DEPTH];
+    PixelSlice door_ahead[DEPTH];
+    PixelSlice door_inturn[DEPTH];
+    PixelSlice corner[DEPTH];
+    PixelSlice fork[DEPTH];
+    PixelSlice cover[DEPTH];
+    PixelSlice empty;
 
-static PixelSlice gfx_load(const Slice &s, const char *basename, int idx)
-{
-    U8 type;
-    Str name = Str::fmt("%s%d", basename, idx);
-    int offs = find_gra_item(s, name.c_str(), &type);
-    if (offs < 0 || type != 5)
-        panic("bad graphics for corridor!");
+    static PixelSlice load(const Slice &lib, const char *basename, int idx)
+    {
+        U8 type;
+        int offs = find_gra_item(lib, Str::fmt("%s%d", basename, idx), &type);
+        if (offs <0 || type != 5)
+            panic("bad graphics for corridor!");
+        return load_delta_pixels(lib(offs));
+    }
 
-    return load_delta_pixels(s(offs));
-}
+    static void blit_chunk(const PixelSlice &what, bool flipx)
+    {
+        static const int CX = 160, CY = 32;
+        blit_transparent_shrink(vga_screen, CX, CY, what, 1, flipx);
+    }
+
+public:
+    void init(const Str &libfilename)
+    {
+        Slice lib = read_file(libfilename);
+        for (int i=0; i < DEPTH; i++) {
+            wall_side[i] = load(lib, "WAND", i);
+            wall_ahead[i] = load(lib, "FRONTAL", i);
+            door_side[i] = (i >= 1 && i <= 4) ? load(lib, "TUER", i) : wall_side[i];
+            door_ahead[i] = load(lib, "FTUER", i);
+            door_inturn[i] = (i >= 0 && i <= 4) ? load(lib, "GTUER", i) : PixelSlice();
+            corner[i] = load(lib, "ECKE", i);
+            fork[i] = load(lib, "GANG", i);
+            cover[i] = (i >= 2) ? load(lib, "ABDECK", i) : PixelSlice();
+        }
+    }
+
+    void render(Pos pos, Dir look_dir)
+    {
+        Dir rev_look = rotate(look_dir, ROT_U);
+        Dir lrdir[2];
+        lrdir[0] = rotate(look_dir, ROT_CCW);
+        lrdir[1] = rotate(look_dir, ROT_CW);
+
+        // determine draw depth (i.e. distance to next blocking object)
+        int zmin = DEPTH-1;
+        while (zmin > 0) {
+            Pos next = advance(pos, look_dir);
+            if (map_at(next) != MB_FREE)
+                break;
+            pos = next;
+            zmin--;
+        }
+
+        // unclear:
+        // - cover model?
+        // - door also depends on which side faces player, how does game encode this?
+        for (int z=zmin; z < DEPTH; z++) { // depth *increases* towards viewer
+            Pos frontpos = advance(pos, look_dir);
+            MapBlock front = map_at(frontpos);
+
+            for (int lr=0; lr < 2; lr++) {
+                bool flipx = lr == 0;
+                MapBlock side = map_at(advance(pos, lrdir[lr]));
+
+                if (side == MB_FREE) // if turn is free, draw fork
+                    blit_chunk(fork[z], flipx);
+
+                if (front != MB_FREE)
+                    blit_chunk(wall_ahead[z], flipx);
+
+                // handle side
+                if (side == MB_FREE) {
+                    MapBlock frontside = map_at(advance(frontpos, lrdir[lr]));
+                    if (is_visible_door(frontside, look_dir)) // add door decal to side
+                        blit_chunk(door_inturn[z], flipx);
+                } else {
+                    blit_chunk(wall_side[z], flipx);
+                    if (is_visible_door(side, lrdir[lr]))
+                        blit_chunk(door_side[z], flipx);
+                }
+
+                // fix up corners
+                if (front != MB_FREE && side != MB_FREE)
+                    blit_chunk(corner[z], flipx);
+
+                // draw door on front wall
+                if (is_visible_door(front, look_dir))
+                    blit_chunk(door_ahead[z], flipx);
+            }
+
+            pos = advance(pos, rev_look);
+        }
+    }
+};
+
+// ---- corridor main
+
+static CorridorGfx *s_gfx;
 
 void corridor_init()
 {
-    Slice lib = read_file("grafix/wand01.gra");
-
-    for (int i=0; i < DEPTH; i++) {
-        s_wall_side[i] = gfx_load(lib, "WAND", i);
-        s_wall_ahead[i] = gfx_load(lib, "FRONTAL", i);
-        s_door_side[i] = (i >= 1 && i <= 4) ? gfx_load(lib, "TUER", i) : s_wall_side[i];
-        s_door_ahead[i] = gfx_load(lib, "FTUER", i);
-        s_door_inturn[i] = (i >= 0 && i <= 4) ? gfx_load(lib, "GTUER", i) : PixelSlice();
-        s_corner[i] = gfx_load(lib, "ECKE", i);
-        s_fork[i] = gfx_load(lib, "GANG", i);
-        s_cover[i] = (i >= 2) ? gfx_load(lib, "ABDECK", i) : PixelSlice();
-    }
+    s_gfx = new CorridorGfx;
+    s_gfx->init("grafix/wand01.gra");
 }
 
 void corridor_shutdown()
 {
-    for (int i=0; i < DEPTH; i++) {
-        s_wall_side[i] = PixelSlice();
-        s_wall_ahead[i] = PixelSlice();
-        s_door_side[i] = PixelSlice();
-        s_door_ahead[i] = PixelSlice();
-        s_corner[i] = PixelSlice();
-        s_fork[i] = PixelSlice();
-        s_cover[i] = PixelSlice();
-    }
+    delete s_gfx;
 }
 
 void corridor_start()
@@ -258,70 +325,9 @@ void corridor_start()
     set_palette();
 }
 
-static void blit_corridor(const PixelSlice &what, bool flipx)
-{
-    static const int CX = 160, CY = 32;
-    blit_transparent_shrink(vga_screen, CX, CY, what, 1, flipx);
-}
-
 void corridor_render()
 {
-    Pos pos = player_pos();
-    Dir look_dir = (Dir)get_var_int("gangd");
-    Dir rev_look = rotate(look_dir, ROT_U);
-    Dir lrdir[2];
-    lrdir[0] = rotate(look_dir, ROT_CCW);
-    lrdir[1] = rotate(look_dir, ROT_CW);
-
-    // determine draw depth (i.e. distance to next blocking object)
-    int zmin = DEPTH-1;
-    while (zmin > 0) {
-        Pos next = advance(pos, look_dir);
-        if (map1[next.y][next.x] != MB_FREE)
-            break;
-        pos = next;
-        zmin--;
-    }
-
-    // unclear:
-    // - cover model?
-    // - door also depends on which side faces player, how does game encode this?
-    for (int z=zmin; z < DEPTH; z++) { // depth *increases* towards viewer
-        Pos frontpos = advance(pos, look_dir);
-        MapBlock front = map_at(frontpos);
-
-        for (int lr=0; lr < 2; lr++) {
-            bool flipx = lr == 0;
-            MapBlock side = map_at(advance(pos, lrdir[lr]));
-
-            if (side == MB_FREE) // if turn is free, draw fork
-                blit_corridor(s_fork[z], flipx);
-
-            if (front != MB_FREE)
-                blit_corridor(s_wall_ahead[z], flipx);
-
-            // handle side
-            if (side == MB_FREE) {
-                MapBlock frontside = map_at(advance(frontpos, lrdir[lr]));
-                if (is_visible_door(frontside, look_dir)) // add door decal to side
-                    blit_corridor(s_door_inturn[z], flipx);
-            } else {
-                blit_corridor(s_wall_side[z], flipx);
-                if (is_visible_door(side, lrdir[lr]))
-                    blit_corridor(s_door_side[z], flipx);
-            }
-
-            // fix up corners
-            if (front != MB_FREE && side != MB_FREE)
-                blit_corridor(s_corner[z], flipx);
-
-            // draw door on front wall
-            if (is_visible_door(front, look_dir))
-                blit_corridor(s_door_ahead[z], flipx);
-        }
-
-        pos = advance(pos, rev_look);
-    }
+    s_gfx->render(player_pos(), player_dir());
 }
 
 void corridor_click(int code)
