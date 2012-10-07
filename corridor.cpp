@@ -161,9 +161,18 @@ static Pos step(const Pos &in, Dir d)
     static const int dx[4] = { 0, 0, -1, 1 };
     static const int dy[4] = { 1, -1, 0, 0 };
     Pos p = in;
-    p.x = (p.x + dx[d]) % MAPW;
+    p.x = (p.x + dx[d] + MAPW) % MAPW;
     p.y = clamp(p.y + dy[d], 0, MAPH-1);
     return p;
+}
+
+static MapBlock map_at(const Pos &p)
+{
+    assert(p.x >= 0 && p.x < MAPW);
+    if (p.y >= 0 && p.y < MAPH)
+        return (MapBlock)map1[p.y][p.x];
+    else
+        return MB_SOLID;
 }
 
 static Pos advance(const Pos &in, Dir d)
@@ -171,13 +180,8 @@ static Pos advance(const Pos &in, Dir d)
     Pos p = in;
     do {
         p = step(p, d);
-    } while (map1[p.y][p.x] == MB_SKIP);
+    } while (map_at(p) == MB_SKIP);
     return p;
-}
-
-static MapBlock map_at(const Pos &p)
-{
-    return (MapBlock)map1[p.y][p.x];
 }
 
 static bool is_visible_door(MapBlock b, Dir look_dir)
@@ -250,9 +254,7 @@ void corridor_start()
     if (hour >= 1 && hour <= 5)
         pal = 98;
 
-    Str filename = Str::fmt("grafix/palette.%d", pal);
-    Slice data = read_file(filename.c_str());
-    memcpy(palette_a, &data[0], sizeof(Palette));
+    load_palette(Str::fmt("grafix/palette.%d", pal));
     set_palette();
 }
 
@@ -327,9 +329,15 @@ void corridor_click(int code)
     Dir dir = player_dir();
 
     switch (code) {
-    case MC_FORWARD:    set_player_pos(advance(player_pos(), dir)); break;
     case MC_TURNL:      set_player_dir(rotate(dir, ROT_CCW)); break;
     case MC_TURNR:      set_player_dir(rotate(dir, ROT_CW)); break;
     case MC_TURNU:      set_player_dir(rotate(dir, ROT_U)); break;
+    case MC_FORWARD:
+        {
+            Pos newpos = advance(player_pos(), dir);
+            if (map_at(newpos) == MB_FREE)
+                set_player_pos(newpos);
+        }
+        break;
     }
 }

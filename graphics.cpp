@@ -724,6 +724,19 @@ static void decode_mix(MixItem *items, int count, const Str &vbFilename)
     }
 }
 
+static void load_palette_data(const Slice &s)
+{
+    memcpy(palette_a, &s[0], sizeof(Palette));
+    memcpy(palette_b, &s[0], sizeof(Palette));
+    fix_palette(palette_a);
+    fix_palette(palette_b);
+}
+
+void load_palette(const Str &filename)
+{
+    load_palette_data(read_file(filename));
+}
+
 void load_background(const Str &filename, int screen)
 {
     Slice s = read_file(filename);
@@ -742,7 +755,6 @@ void load_background(const Str &filename, int screen)
                 blit(vga_screen, 0, 0, load_delta_pixels(s(768)));
         }
 
-        memcpy(palette_a, &s[0], 768);
-        fix_palette(palette_a);
+        load_palette_data(s);
     }
 }

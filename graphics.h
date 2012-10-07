@@ -88,6 +88,7 @@ PixelSlice load_delta_pixels(const Slice &data);
 
 void set_palette();
 void set_palb_fade(int intensity);
+void load_palette(const Str &filename);
 void load_background(const Str &filename, int screen=0); // 0=VGA, 1..4=scroll screen
 
 // big anim flags
