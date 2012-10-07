@@ -5,10 +5,12 @@
 #include "graphics.h"
 #include "font.h"
 #include "script.h"
+#include "str.h"
 #include "main.h"
 #include "mouse.h"
 #include <vector>
 #include <assert.h>
+#include <ctype.h>
 
 static const int LABEL_LEN = 5;
 
@@ -45,7 +47,7 @@ namespace {
     };
 
     class Dialog {
-        std::string charname;
+        Str charname;
         std::vector<int> dir;
         int root;
         Slice data;
@@ -186,7 +188,7 @@ void Dialog::load(const char *dlgname)
 {
     cond.reset();
 
-    std::string filename = strf("chars/%s/%s.cm", charname.c_str(), dlgname);
+    Str filename = Str::fmt("chars/%s/%s.cm", charname.c_str(), dlgname);
     Slice file = read_xored(filename.c_str());
     int dirwords = little_u16(&file[0]);
     int datasize = little_u16(&file[2]);
@@ -196,7 +198,7 @@ void Dialog::load(const char *dlgname)
         dir[i] = little_u16(&file[i*2]);
     data = file(dirwords*2, dirwords*2+datasize);
 
-    filename = strf("chars/%s/%s.vb", charname.c_str(), dlgname);
+    filename = Str::fmt("chars/%s/%s.vb", charname.c_str(), dlgname);
     cond.parse_vb(try_read_xored(filename.c_str()));
 }
 
@@ -309,7 +311,7 @@ void Dialog::debug_dump_all()
 
 static void display_face(const char *charname, bool flipped, int scale)
 {
-    std::string filename = strf("chars/%s/face.frz", charname);
+    Str filename = Str::fmt("chars/%s/face.frz", charname);
     Slice s = read_file(filename.c_str());
 
     // use top 128 palette entries from .frz
@@ -342,7 +344,7 @@ static bool is_punctuation(char ch)
     return (ch == '.' || ch == '!' || ch == '?' || ch == ',' || ch == ';' || ch == ':' || ch == ' ');
 }
 
-static void interpolate_line(std::string &out, std::vector<size_t> &breaks, const U8 *text, int len)
+static void interpolate_line(Str &out, std::vector<int> &breaks, const U8 *text, int len)
 {
     int i = 0;
     breaks.push_back(0);
@@ -355,7 +357,7 @@ static void interpolate_line(std::string &out, std::vector<size_t> &breaks, cons
             break;
         case '@': { // interpolated variable
             int end = word_end(text, i + 1, len);
-            std::string varname((char*)text + i + 1, (char *)text+end);
+            Str varname((char*)text + i + 1, (char *)text+end);
             out += get_var_as_str(varname);
             i = end;
             if (i+1 < len && is_punctuation(text[i+1]))
@@ -383,8 +385,8 @@ static void interpolate_line(std::string &out, std::vector<size_t> &breaks, cons
 static int print_text_linebreak(const Font *font, const U8 *text, int len, int x0, int y0, int x1,
     void (*fragment_callback)(void *user, size_t, size_t), void *user)
 {
-    std::string txt;
-    std::vector<size_t> breaks;
+    Str txt;
+    std::vector<int> breaks;
     interpolate_line(txt, breaks, text, len);
 
     int cur_x = x0, cur_y = y0;
@@ -396,8 +398,8 @@ static int print_text_linebreak(const Font *font, const U8 *text, int len, int x
     // chop it all up into lines
     for (size_t brkpos=0; brkpos + 1 < breaks.size(); brkpos++) {
         // width of fragment, plus trailing hyphen if necessary
-        size_t start = breaks[brkpos];
-        size_t end = breaks[brkpos + 1];
+        int start = breaks[brkpos];
+        int end = breaks[brkpos + 1];
         int width = font->str_width(&txt[start], end-start);
         int layoutw = width;
         hashyph = false;
@@ -456,7 +458,7 @@ static void say_line(Animation *mouth, const U8 *text, int len, bool flipped, in
 static int handle_text_input(Dialog &dlg, int state, const DialogString *str)
 {
     // TODO implement line editor (but need keyboard events first)
-    std::string varname((char *)str->text + 1, (char *)str->text + str->text_len);
+    Str varname((char *)str->text + 1, (char *)str->text + str->text_len);
     set_var_str(varname, "hund");
     return state;
 }
@@ -515,7 +517,7 @@ void run_dialog(const char *charname, const char *dlgname)
 
     display_face(charname, flipped, scale);
 
-    std::string filename = strf("chars/%s/sprech.ani", charname);
+    Str filename = Str::fmt("chars/%s/sprech.ani", charname);
     Animation *mouth = new_big_anim(filename.c_str(), false);
 
     Dialog dlg(charname);

@@ -4,6 +4,7 @@
 #include "common.h"
 
 struct PixelBuffer;
+class Str;
 class Slice;
 
 struct Rect {
@@ -87,7 +88,7 @@ PixelSlice load_delta_pixels(const Slice &data);
 
 void set_palette();
 void set_palb_fade(int intensity);
-void load_background(const char *filename, int screen=0); // 0=VGA, 1..4=scroll screen
+void load_background(const Str &filename, int screen=0); // 0=VGA, 1..4=scroll screen
 
 // big anim flags
 enum {
@@ -97,8 +98,8 @@ enum {
 };
 
 Animation *new_color_cycle_anim(int first, int last, int delay, int dir);
-Animation *new_big_anim(const char *filename, int flags);
-Animation *new_mega_anim(const char *grafilename, const char *prefix, int first_frame,
+Animation *new_big_anim(const Str &filename, int flags);
+Animation *new_mega_anim(const Str &grafilename, const Str &prefix, int first_frame,
     int last_frame, int posx, int posy, int delay, int scale, int flip);
 
 #endif

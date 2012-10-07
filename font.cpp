@@ -1,6 +1,7 @@
 #include "font.h"
 #include "graphics.h"
 #include "util.h"
+#include "str.h"
 #include <algorithm>
 #include <string.h>
 #include <assert.h>

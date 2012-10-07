@@ -1,6 +1,7 @@
 #define _CRT_SECURE_NO_DEPRECATE
 #include "common.h"
 #include "util.h"
+#include "str.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -84,69 +85,6 @@ const Slice Slice::operator()(U32 start, U32 end) const
     return s;
 }
 
-// ---- string handling
-
-PascalStr::PascalStr(const U8 *pstr)
-{
-    int len = pstr[0];
-    data = new char[len + 1];
-    memcpy(data, pstr + 1, len);
-    data[len] = 0;
-}
-
-PascalStr::~PascalStr()
-{
-    delete[] data;
-}
-
-std::string strf(const char *fmt, ...)
-{
-    char buf[1024];
-    va_list arg;
-    va_start(arg, fmt);
-    int nchars = vsnprintf(buf, sizeof(buf), fmt, arg);
-    va_end(arg);
-
-    if (nchars < 0 || nchars >= sizeof(buf))
-        panic("strf: buffer size insufficient");
-
-    return std::string(buf);
-}
-
-std::string tolower(const std::string &s)
-{
-    std::string out = s;
-    for (auto it = out.begin(); it != out.end(); ++it)
-        *it = tolower(*it);
-    return out;
-}
-
-bool has_suffix(const char *str, const char *suffix)
-{
-    int len = strlen(str);
-    int lensuf = strlen(suffix);
-    if (lensuf > len)
-        return false;
-
-    return _stricmp(str + (len - lensuf), suffix) == 0;
-}
-
-char *replace_ext(const char *filename, const char *newext)
-{
-    const char *dot = strrchr(filename, '.');
-    if (!dot)
-        return _strdup(filename);
-    else {
-        int lenpfx = dot - filename;
-        int lenext = strlen(newext);
-        char *str = (char *)malloc(lenpfx + lenext + 1);
-        memcpy(str, filename, lenpfx);
-        memcpy(str + lenpfx, newext, lenext);
-        str[lenpfx + lenext] = 0;
-        return str;
-    }
-}
-
 // ---- file IO
 
 static int fsize(FILE *f)
@@ -158,9 +96,9 @@ static int fsize(FILE *f)
     return sz;
 }
 
-Slice try_read_file(const char *filename)
+Slice try_read_file(const Str &filename)
 {
-    FILE *f = fopen(filename, "rb");
+    FILE *f = fopen(filename.c_str(), "rb");
     if (!f)
         return Slice();
 
@@ -173,19 +111,19 @@ Slice try_read_file(const char *filename)
     return s;
 }
 
-Slice read_file(const char *filename)
+Slice read_file(const Str &filename)
 {
-    Slice s = try_read_file(filename);
+    Slice s = try_read_file(filename.c_str());
     if (!s)
-        panic("%s not found", filename);
+        panic("%s not found", filename.c_str());
     return s;
 }
 
-void write_file(const char *filename, const void *buf, int size)
+void write_file(const Str &filename, const void *buf, int size)
 {
-    FILE *f = fopen(filename, "wb");
+    FILE *f = fopen(filename.c_str(), "wb");
     if (!f)
-        panic("couldn't open %s for writing", filename);
+        panic("couldn't open %s for writing", filename.c_str());
 
     fwrite(buf, size, 1, f);
     fclose(f);
@@ -205,7 +143,7 @@ static void dexor(U8 *buffer, int nbytes, int *start)
         *start = 0;
 }
 
-Slice try_read_xored(const char *filename)
+Slice try_read_xored(const Str &filename)
 {
     Slice s = try_read_file(filename);
     if (!s || s.len() < 2)
@@ -216,11 +154,11 @@ Slice try_read_xored(const char *filename)
     return s(start);
 }
 
-Slice read_xored(const char *filename)
+Slice read_xored(const Str &filename)
 {
     Slice s = try_read_xored(filename);
     if (!s)
-        panic("%s not found", filename);
+        panic("%s not found", filename.c_str());
     return s;
 }
 
@@ -267,7 +205,7 @@ void list_gra_contents(const Slice &grafile)
     }
 }
 
-int find_gra_item(const Slice &grafile, const char *name, U8 *type)
+int find_gra_item(const Slice &grafile, const Str &name, U8 *type)
 {
     int dir_size = little_u16(&grafile[0]);
     int pos = 2;
@@ -295,10 +233,10 @@ int find_gra_item(const Slice &grafile, const char *name, U8 *type)
     return -1;
 }
 
-std::string to_string(const Slice &sl)
+Str to_string(const Slice &sl)
 {
     Slice &s = (Slice &)sl;
-    return std::string(&s[0], &s[0] + s.len());
+    return Str((const char *)&s[0], (const char *)&s[0] + s.len());
 }
 
 static bool islinespace(U8 ch)

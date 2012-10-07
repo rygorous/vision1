@@ -1,19 +1,19 @@
 #ifndef __VARS_H__
 #define __VARS_H__
 
-#include <string>
+class Str;
 
 void vars_init();
 
 void dump_all_vars(); // debug
 
-int get_var_int(const std::string &name);
-void set_var_int(const std::string &name, int value);
-int *get_var_int_ptr(const std::string &name); // this is ugly!
+int get_var_int(const Str &name);
+void set_var_int(const Str &name, int value);
+int *get_var_int_ptr(const Str &name); // this is ugly!
 
-std::string get_var_str(const std::string &name);
-void set_var_str(const std::string &name, const std::string &value);
+Str get_var_str(const Str &name);
+void set_var_str(const Str &name, const Str &value);
 
-std::string get_var_as_str(const std::string &name);
+Str get_var_as_str(const Str &name);
 
 #endif

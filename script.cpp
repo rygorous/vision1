@@ -2,6 +2,7 @@
 #include "graphics.h"
 #include "main.h"
 #include "util.h"
+#include "str.h"
 #include "vars.h"
 #include "dialog.h"
 #include "mouse.h"
@@ -342,7 +343,7 @@ static int int_value_word()
     return int_value(scan_word());
 }
 
-static std::string str_value(const Slice &value)
+static Str str_value(const Slice &value)
 {
     if (value[0] == '\'') { // literal
         if (value[value.len()-1] != '\'')
@@ -353,7 +354,7 @@ static std::string str_value(const Slice &value)
         return get_var_as_str(to_string(value));
 }
 
-static std::string str_value_word()
+static Str str_value_word()
 {
     if (line.len() && line[0] == '\'') {
         // find matching '
@@ -362,27 +363,19 @@ static std::string str_value_word()
             pos++;
         if (pos < line.len())
             pos++;
-        std::string s = str_value(line(0, pos));
+        Str s = str_value(line(0, pos));
         line = line(pos);
         return s;
     } else
         return str_value(scan_word());
 }
 
-static std::string str_word()
+static Str str_word()
 {
     return to_string(scan_word());
 }
 
-static bool has_prefix(const std::string &value, const char *str)
-{
-    size_t pos = 0;
-    while (pos < value.size() && str[pos] && tolower(value[pos]) == str[pos])
-        pos++;
-    return str[pos] == 0;
-}
-
-static bool has_prefix(const Slice &value, const char *str)
+static bool has_prefixi(const Slice &value, const char *str)
 {
     U32 pos = 0;
     while (pos < value.len() && str[pos] && tolower(value[pos]) == str[pos])
@@ -392,7 +385,7 @@ static bool has_prefix(const Slice &value, const char *str)
 
 static bool is_equal(const Slice &value, const char *str)
 {
-    return has_prefix(value, str) && str[value.len()] == 0;
+    return has_prefixi(value, str) && str[value.len()] == 0;
 }
 
 static bool is_equal(const Slice &a, const Slice &b)
@@ -442,7 +435,7 @@ static Slice scan_bool_tok()
     return s;
 }
 
-static std::string bool_str_value(const Slice &value)
+static Str bool_str_value(const Slice &value)
 {
     if (value[0] == '\'') { // quoted literal
        if (value[value.len()-1] != '\'')
@@ -450,7 +443,7 @@ static std::string bool_str_value(const Slice &value)
 
         return to_string(value(1, value.len()-1));
     } else if (value[value.len()-1] == '$') // string variable
-        return get_var_str(to_string(value));
+        return get_var_str(to_string(value).c_str());
     else
         return to_string(value);
 }
@@ -461,9 +454,9 @@ static bool eval_bool_expr1(Slice &tok)
         return true;
 
     if (tok[0] == '\'' || tok[tok.len() - 1] == '$') { // string compare
-        std::string lhs = bool_str_value(tok);
+        Str lhs = bool_str_value(tok);
         Slice op = scan_bool_tok();
-        std::string rhs = bool_str_value(scan_bool_tok());
+        Str rhs = bool_str_value(scan_bool_tok());
         tok = scan_bool_tok();
 
         if (is_equal(op, "="))
@@ -588,13 +581,13 @@ static void cmd_if()
 
         // special cases first
         // TODO there's more of them!
-        if (has_prefix(line, "init"))
+        if (has_prefixi(line, "init"))
             cond = isInit;
-        else if (has_prefix(line, "hot"))
+        else if (has_prefixi(line, "hot"))
             cond = need_int_literal(line(3)) == hotspot_clicked;
-        else if (has_prefix(line, "cnt"))
+        else if (has_prefixi(line, "cnt"))
             cond = need_int_literal(line(3)) == 1234; // TODO real impl!
-        else if (has_prefix(line, "key"))
+        else if (has_prefixi(line, "key"))
             cond = false; // TODO real impl!
         else // assume it's an expression
             cond = bool_expr();
@@ -622,7 +615,7 @@ static void cmd_end()
 
 static void cmd_set()
 {
-    std::string varname = str_word();
+    Str varname = str_word();
     if (varname.back() == '$')
         set_var_str(varname, str_value_word());
     else
@@ -631,7 +624,7 @@ static void cmd_set()
 
 static void cmd_add()
 {
-    std::string varname = str_word();
+    Str varname = str_word();
     if (varname.back() == '$')
         set_var_str(varname, get_var_str(varname) + str_value_word());
     else
@@ -640,7 +633,7 @@ static void cmd_add()
 
 static void cmd_sub()
 {
-    std::string varname = str_word();
+    Str varname = str_word();
     set_var_int(varname, get_var_int(varname) - int_value_word());
 }
 
@@ -655,7 +648,7 @@ static void cmd_pic()
 {
     clear_anim();
 
-    std::string filename = str_word();
+    Str filename = str_word();
     load_background(filename.c_str());
 
     Slice other = scan_word();
@@ -702,8 +695,8 @@ static void cmd_exec()
 {
     Slice what = scan_word();
     if (is_equal(what, "dialog")) {
-        std::string charname = str_word();
-        std::string dlgname = str_word();
+        Str charname = str_word();
+        Str dlgname = str_word();
 
         scroll_disable();
         run_dialog(charname.c_str(), dlgname.c_str());
@@ -716,7 +709,7 @@ static void cmd_exec()
 
 static void cmd_random()
 {
-    std::string varname = str_word();
+    Str varname = str_word();
     int range = int_value_word();
     if (!range)
         range = 1;
@@ -777,7 +770,7 @@ static void cmd_black()
 static void cmd_big()
 {
     int flags = 0;
-    std::string filename = str_word() + ".ani";
+    Str filename = str_word() + ".ani";
     if (filename[0] == '!') {
         flags |= BA_REVERSE;
         filename = filename.substr(1);
@@ -789,8 +782,8 @@ static void cmd_big()
 
 static void cmd_megaanim()
 {
-    std::string grafilename = str_word();
-    std::string prefix = str_word();
+    Str grafilename = str_word();
+    Str prefix = str_word();
     int frame_start = int_value_word();
     int frame_end = int_value_word();
     int posx = int_value_word();
@@ -842,13 +835,13 @@ static void cmd_grafix()
 static void cmd_def()
 {
     int which = int_value_word();
-    std::string code = str_word();
+    Str code = str_word();
     cursor_define(which, code.c_str());
 }
 
 static void cmd_hot()
 {
-    std::string filename = str_word();
+    Str filename = str_word();
     int screen = int_value_word();
 
     hotspot_load(filename.c_str(), screen);
@@ -862,7 +855,7 @@ static void cmd_print()
 static void cmd_ani()
 {
     int flags = BA_PING_PONG;
-    std::string filename = str_word() + ".ani";
+    Str filename = str_word() + ".ani";
     int screen = int_value_word();
 
     if (filename[0] == '!') {
@@ -882,7 +875,7 @@ static void cmd_ani()
 
 static void cmd_back()
 {
-    std::string filename = str_word();
+    Str filename = str_word();
     int slot = int_value_word();
 
     load_background(filename.c_str());
@@ -896,7 +889,7 @@ static void cmd_back()
 
 static void cmd_scroll()
 {
-    std::string mode = str_word();
+    Str mode = str_word();
     scroll_x_min = int_value_word();
     scroll_x_max = int_value_word();
     scroll_auto = tolower(mode) == "auto";
@@ -910,7 +903,7 @@ static void cmd_start()
 
 static void cmd_pointer()
 {
-    std::string which = str_word();
+    Str which = str_word();
     if (!which.empty())
         cursor_override = get_mouse_cursor_from_char(which[0]);
 }
@@ -989,7 +982,7 @@ static void run_script(Slice code, bool init)
         Slice command = scan_word();
 
         int noffs = 0;
-        if (has_prefix(command, "el") || has_prefix(command, "en"))
+        if (has_prefixi(command, "el") || has_prefixi(command, "en"))
             noffs = -1;
         //printf("%c%*s%s\n", flow_counter ? '-' : ' ', 2*(nest_counter+noffs), "", to_string(orig_line).c_str());
 
@@ -1022,7 +1015,7 @@ enum GameMode
 };
 
 static Slice s_script;
-static std::string s_command;
+static Str s_command;
 static GameMode s_mode = GM_ROOM;
 
 void game_command(const char *cmd)
@@ -1114,16 +1107,16 @@ void game_script_tick()
     if (!s_command.empty()) {
         game_reset();
 
-        if (has_prefix(s_command, "welt ")) {
-            std::string filename = "data/" + s_command.substr(5) + ".par";
-            s_command.clear();
+        if (has_prefixi(s_command, "welt ")) {
+            Str filename = "data/" + s_command.substr(5) + ".par";
+            s_command = "";
 
             s_mode = GM_ROOM;
             s_script = read_xored(filename.c_str());
             run_script(s_script, true);
-        } else if (has_prefix(s_command, "gang ")) {
+        } else if (has_prefixi(s_command, "gang ")) {
             // command parsing?
-            s_command.clear();
+            s_command = "";
 
             s_mode = GM_CORRIDOR;
             hotspot_load("grafix/corri.hot", 0); // wrong img!!

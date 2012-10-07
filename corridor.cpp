@@ -1,10 +1,13 @@
 #include "corridor.h"
 #include "common.h"
 #include "util.h"
+#include "str.h"
 #include "graphics.h"
 #include "vars.h"
 #include "mouse.h"
 #include <assert.h>
+#include <stdio.h>
+#include <string.h>
 
 // ---- player position and direction
 
@@ -199,7 +202,7 @@ static PixelSlice s_empty;
 static PixelSlice gfx_load(const Slice &s, const char *basename, int idx)
 {
     U8 type;
-    std::string name = strf("%s%d", basename, idx);
+    Str name = Str::fmt("%s%d", basename, idx);
     int offs = find_gra_item(s, name.c_str(), &type);
     if (offs < 0 || type != 5)
         panic("bad graphics for corridor!");
@@ -247,7 +250,7 @@ void corridor_start()
     if (hour >= 1 && hour <= 5)
         pal = 98;
 
-    std::string filename = strf("grafix/palette.%d", pal);
+    Str filename = Str::fmt("grafix/palette.%d", pal);
     Slice data = read_file(filename.c_str());
     memcpy(palette_a, &data[0], sizeof(Palette));
     set_palette();

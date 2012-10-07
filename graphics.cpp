@@ -1,5 +1,6 @@
 #include "graphics.h"
 #include "util.h"
+#include "str.h"
 #include "script.h"
 #include <algorithm>
 #include <assert.h>
@@ -417,7 +418,7 @@ class BigAnimation : public Animation { // .ani / .big files
     PixelSlice get_frame(int frame) const;
 
 public:
-    BigAnimation(const char *filename, int flags);
+    BigAnimation(const Str &filename, int flags);
     virtual ~BigAnimation();
 
     virtual void tick();
@@ -434,7 +435,7 @@ PixelSlice BigAnimation::get_frame(int frame) const
     return data.slice(0, frame * h, w, (frame + 1)*h);
 }
 
-BigAnimation::BigAnimation(const char *filename, int flags)
+BigAnimation::BigAnimation(const Str &filename, int flags)
     : posx(0), posy(0), w(0), h(0),
     last_frame(-1), wait_frames(1), cur_frame(0), cur_tick(0),
     flags(flags)
@@ -513,14 +514,14 @@ void BigAnimation::rewind()
     cur_frame = cur_tick = 0;
 }
 
-Animation *new_big_anim(const char *filename, int flags)
+Animation *new_big_anim(const Str &filename, int flags)
 {
     return new BigAnimation(filename, flags);
 }
 
 class MegaAnimation : public Animation { // .gra files
     Slice grafile;
-    char nameprefix[12];
+    Str nameprefix;
     int first_frame, last_frame;
     int posx, posy;
     int delay;
@@ -529,7 +530,7 @@ class MegaAnimation : public Animation { // .gra files
     int loops_left;
 
 public:
-    MegaAnimation(const char *grafilename, const char *prefix, int first_frame, int last_frame,
+    MegaAnimation(const Str &grafilename, const Str &prefix, int first_frame, int last_frame,
         int posx, int posy, int delay, int scale, int flip);
     virtual ~MegaAnimation();
 
@@ -539,12 +540,11 @@ public:
     virtual void rewind();
 };
 
-MegaAnimation::MegaAnimation(const char *grafilename, const char *prefix, int first_frame,
+MegaAnimation::MegaAnimation(const Str &grafilename, const Str &prefix, int first_frame,
     int last_frame, int posx, int posy, int delay, int scale, int flip)
-    : first_frame(first_frame), last_frame(last_frame), posx(posx), posy(posy),
+    : nameprefix(prefix), first_frame(first_frame), last_frame(last_frame), posx(posx), posy(posy),
     delay(delay), scale(scale), flip(flip), cur_frame(first_frame), cur_tick(0)
 {
-    strcpy(nameprefix, prefix);
     grafile = read_file(grafilename);
     loops_left = last_frame / 1000;
     this->last_frame %= 1000;
@@ -572,7 +572,7 @@ void MegaAnimation::render(PixelSlice &target)
         return;
 
     U8 type;
-    std::string name = strf("%s%d", nameprefix, cur_frame);
+    Str name = Str::fmt("%s%d", nameprefix, cur_frame);
     int offs = find_gra_item(grafile, name.c_str(), &type);
     if (offs < 0 || type != 5)
         panic("bad anim! (prefix=%s frame=%d offs=%d type=%d)", nameprefix, cur_frame, offs, type);
@@ -591,7 +591,7 @@ void MegaAnimation::rewind()
     cur_tick = 0;
 }
 
-Animation *new_mega_anim(const char *grafilename, const char *prefix, int first_frame, int last_frame,
+Animation *new_mega_anim(const Str &grafilename, const Str &prefix, int first_frame, int last_frame,
     int posx, int posy, int delay, int scale, int flip)
 {
     return new MegaAnimation(grafilename, prefix, first_frame, last_frame, posx, posy, delay, scale, flip);
@@ -677,16 +677,16 @@ static void flipx_screen()
     }
 }
 
-static void decode_mix(MixItem *items, int count, const char *vbFilename)
+static void decode_mix(MixItem *items, int count, const Str &vbFilename)
 {
     // background
-    load_background(PascalStr(items->pasNameStr));
+    load_background(Str::pascl(items->pasNameStr));
     scale_palette(palette_a, 128, items->para1l, items->para2, items->para3);
     if (items->flipX)
         flipx_screen();
 
     // library
-    Slice libFile = read_file(PascalStr(items[1].pasNameStr));
+    Slice libFile = read_file(Str::pascl(items[1].pasNameStr));
     Slice vbFile = try_read_xored(vbFilename);
     int hotIndex = 0;
 
@@ -700,11 +700,11 @@ static void decode_mix(MixItem *items, int count, const char *vbFilename)
 
     // items
     for (int i=2; i < count; i++) {
-        PascalStr name(items[i].pasNameStr);
+        Str name = Str::pascl(items[i].pasNameStr);
         U8 type;
         int offs = find_gra_item(libFile, name, &type);
         if (offs < 0) {
-            printf("didn't find %s!\n", (const char*)name);
+            printf("didn't find %s!\n", name.c_str());
             continue;
         }
 
@@ -724,16 +724,15 @@ static void decode_mix(MixItem *items, int count, const char *vbFilename)
     }
 }
 
-void load_background(const char *filename, int screen)
+void load_background(const Str &filename, int screen)
 {
     Slice s = read_file(filename);
 
-    if (has_suffix(filename, ".mix")) {
-        char *vbFilename = replace_ext(filename, ".vb");
+    if (has_suffixi(filename, ".mix")) {
+        Str vbFilename = replace_ext(filename, ".vb");
         decode_mix((MixItem *)&s[0], s.len() / sizeof(MixItem), vbFilename);
-        free(vbFilename);
     } else {
-        if (!has_suffix(filename, ".pal")) {
+        if (!has_suffixi(filename, ".pal")) {
             // gross, but this is the original logic from the game
             if (s.len() > 63990)
                 memcpy(vga_screen.ptr(0, 0), &s[768], VGA_WIDTH * VGA_HEIGHT);

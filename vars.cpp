@@ -1,11 +1,27 @@
 #include "common.h"
 #include "vars.h"
 #include "util.h"
+#include "str.h"
 #include <ctype.h>
 #include <unordered_map>
 
-static std::unordered_map<std::string, int> int_vars;
-static std::unordered_map<std::string, std::string> str_vars;
+namespace std {
+    template<>
+    class hash<Str> {
+    public:
+        size_t operator()(const Str &s) const
+        {
+            // FNV-1a hash
+            size_t hash = 2166136261;
+            for (int i=0; i < s.size(); i++)
+                hash = (hash ^ s[i]) * 16777619;
+            return hash;
+        }
+    };
+}
+
+static std::unordered_map<Str, int> int_vars;
+static std::unordered_map<Str, Str> str_vars;
 
 void vars_init()
 {
@@ -54,44 +70,44 @@ void dump_all_vars()
         printf("  %s = %s\n", it->first.c_str(), it->second.c_str());
 }
 
-int get_var_int(const std::string &name)
+int get_var_int(const Str &name)
 {
     auto iter = int_vars.find(tolower(name));
     if (iter == int_vars.end())
-        panic("variable not found: %s", name.c_str());
+        panic("variable not found: %s", name);
     return iter->second;
 }
 
-void set_var_int(const std::string &name, int value)
+void set_var_int(const Str &name, int value)
 {
     int_vars[tolower(name)] = value;
 }
 
-int *get_var_int_ptr(const std::string &name)
+int *get_var_int_ptr(const Str &name)
 {
     auto iter = int_vars.find(tolower(name));
     if (iter == int_vars.end())
-        panic("variable not found: %s", name.c_str());
+        panic("variable not found: %s", name);
     return &iter->second;
 }
 
-std::string get_var_str(const std::string &name)
+Str get_var_str(const Str &name)
 {
     auto iter = str_vars.find(tolower(name));
     if (iter == str_vars.end())
-        panic("variable not found: %s", name.c_str());
+        panic("variable not found: %s", name);
     return iter->second;
 }
 
-void set_var_str(const std::string &name, const std::string &value)
+void set_var_str(const Str &name, const Str &value)
 {
     str_vars[tolower(name)] = value;
 }
 
-std::string get_var_as_str(const std::string &name)
+Str get_var_as_str(const Str &name)
 {
     if (name.size() && name.back() == '$') // string var
         return get_var_str(name);
     else // int var
-        return strf("%02d", get_var_int(name));
+        return Str::fmt("%02d", get_var_int(name));
 }

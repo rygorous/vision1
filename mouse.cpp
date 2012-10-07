@@ -1,10 +1,12 @@
 #include "mouse.h"
 #include "util.h"
 #include "graphics.h"
+#include "str.h"
 #include <algorithm>
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <ctype.h>
 
 int mouse_x, mouse_y, mouse_button;
 

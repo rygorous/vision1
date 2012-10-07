@@ -83,6 +83,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mouse.cpp" />
     <ClCompile Include="script.cpp" />
+    <ClCompile Include="str.cpp" />
     <ClCompile Include="util.cpp" />
     <ClCompile Include="vars.cpp" />
   </ItemGroup>
@@ -95,6 +96,7 @@
     <ClInclude Include="main.h" />
     <ClInclude Include="mouse.h" />
     <ClInclude Include="script.h" />
+    <ClInclude Include="str.h" />
     <ClInclude Include="util.h" />
     <ClInclude Include="vars.h" />
   </ItemGroup>

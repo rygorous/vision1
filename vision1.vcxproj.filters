@@ -42,6 +42,9 @@
     <ClCompile Include="corridor.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="str.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common.h">
@@ -72,6 +75,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="corridor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="str.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
