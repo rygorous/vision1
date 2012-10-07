@@ -249,11 +249,11 @@ void corridor_start()
     load_level(get_var_int("etage"));
 
     // determine which palette to load
-    int pal = map2[0][22]; // no idea why this one.
+    int pal = map2[0][21]; // magic index from the game.
     int hour = get_var_int("st");
     if (hour >= 1 && hour <= 5)
         pal = 98;
-
+    
     load_palette(Str::fmt("grafix/palette.%d", pal));
     set_palette();
 }

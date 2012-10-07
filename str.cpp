@@ -152,18 +152,19 @@ bool Str::operator !=(const Str &b) const
 Str &Str::operator +=(const Str &b)
 {
     int sumlen = alen + b.alen;
-    if (sumlen + 1 >= acap)
+    if (sumlen + 1 > acap)
         grow_to(sumlen);
     memcpy(&buf[alen], b.buf, b.alen);
     alen += b.alen;
+    buf[alen] = 0;
     return *this;
 }
 
 Str operator +(const Str &a, const Str &b)
 {
     Str s(a.size() + b.size());
-    memcpy(&s[0], &a[0], a.size());
-    memcpy(&s[a.size()], &b[0], b.size());
+    s += a;
+    s += b;
     return s;
 }
 

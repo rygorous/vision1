@@ -84,6 +84,7 @@ static const int SCROLL_SCREEN_WIDTH = 320;
 static const int SCROLL_WINDOW_WIDTH = SCROLL_SCREEN_WIDTH*4;
 static const int SCROLL_WINDOW_Y0 = 32;
 static const int SCROLL_WINDOW_Y1 = 144;
+static const int SCROLL_WINDOW_HEIGHT = SCROLL_WINDOW_Y1 - SCROLL_WINDOW_Y0;
 
 static PixelSlice scroll_window;
 static int scroll_x, scroll_x_min, scroll_x_max;
@@ -1119,7 +1120,11 @@ void game_script_tick()
             s_command = "";
 
             s_mode = GM_CORRIDOR;
-            hotspot_load("grafix/corri.hot", 0); // wrong img!!
+            Slice hotfile = read_file("grafix/corrihot.dat");
+            hotspots = PixelSlice::black(SCROLL_SCREEN_WIDTH / 2, SCROLL_WINDOW_HEIGHT / 2);
+            if (hotfile.len() == hotspots.width() * hotspots.height())
+                memcpy(hotspots.row(0), &hotfile[0], hotspots.width() * hotspots.height());
+
             cursor_define(1, "urvl");
             corridor_start();
             corridor_render();

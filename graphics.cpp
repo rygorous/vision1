@@ -188,7 +188,8 @@ void blit_transparent_shrink(PixelSlice &dest, int dx, int dy, const PixelSlice 
     
     if (flipX) {
         stepx = -stepx;
-        sxstart = sr.x1;
+        sxstart = sr.x1-1;
+        dx--;
     }
 
     for (int sy=sr.y0; sy < sr.y1; sy += shrink) {
