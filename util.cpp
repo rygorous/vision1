@@ -34,6 +34,11 @@ struct Buffer
     static void unref(Buffer *x)    { if (x && --x->nrefs == 0) delete x; }
 };
 
+void Slice::fini()
+{
+    Buffer::unref(buf);
+}
+
 Slice::Slice()
     : buf(0), ptr(0), length(0)
 {
@@ -53,7 +58,7 @@ Slice::Slice(const Slice &x)
 
 Slice::~Slice()
 {
-    Buffer::unref(buf);
+    fini();
 }
 
 Slice Slice::make(U32 nbytes)
@@ -82,6 +87,13 @@ const Slice Slice::operator()(U32 start, U32 end) const
     Slice s(*this);
     s.ptr += start;
     s.length = end - start;
+    return s;
+}
+
+Slice Slice::clone() const
+{
+    Slice s = make(len());
+    memcpy(&s[0], ptr, len());
     return s;
 }
 
@@ -237,6 +249,25 @@ Str to_string(const Slice &sl)
 {
     Slice &s = (Slice &)sl;
     return Str((const char *)&s[0], (const char *)&s[0] + s.len());
+}
+
+Slice chop(Slice &from, int len)
+{
+    Slice first = from(0, len);
+    from = from(len);
+    return first;
+}
+
+Slice chop_until(Slice &from, U8 sep)
+{
+    void *p = memchr(&from[0], sep, from.len());
+    int len = from.len();
+    if (p)
+        len = (int) ((U8 *)p - &from[0]);
+
+    Slice s = from(0, len);
+    from = from(len + 1);
+    return s;
 }
 
 static bool islinespace(U8 ch)

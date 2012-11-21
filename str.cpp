@@ -125,6 +125,7 @@ Str Str::vfmt(const char *fmtstr, va_list arg)
     s.alloc(len);
     va_copy(argc, arg);
     vsnprintf(s.buf, s.acap, fmtstr, argc);
+    s.alen = len;
 
     return s;
 }

@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include <vector>
 
 // ---- player position and direction
 
@@ -118,7 +119,7 @@ static void debug_print_level()
     for (int x=1; x <= MAPW; x++)
         buf[x-1] = '0' + (x % 10);
     puts(buf);
-    puts("");
+    puts("-");
 
     // actual level
     for (int y=0; y < MAPH; y++) {
@@ -139,6 +140,22 @@ static void debug_print_level()
             }
             if (ch == '?')
                 __debugbreak();
+            buf[x] = ch;
+        }
+        puts(buf);
+    }
+
+    puts("-");
+    for (int y=0; y < MAPH; y++) {
+        for (int x=0; x < MAPW; x++) {
+            char ch = '?';
+            U8 what = map2[y][x];
+            if (what == 0)
+                ch = '.';
+            else if (what >= 1 && what <= 26)
+                ch = 'A' + (what - 1);
+            else if (what >= 27 && what <= 52)
+                ch = 'a' + (what - 27);
             buf[x] = ch;
         }
         puts(buf);
@@ -175,6 +192,15 @@ static MapBlock map_at(const Pos &p)
         return MB_SOLID;
 }
 
+static U8 map2_at(const Pos &p)
+{
+    assert(p.x >= 0 && p.x < MAPW);
+    if (p.y >= 0 && p.y < MAPH)
+        return map2[p.y][p.x];
+    else
+        return 0;
+}
+
 static Pos advance(const Pos &in, Dir d)
 {
     Pos p = in;
@@ -189,10 +215,40 @@ static bool is_visible_door(MapBlock b, Dir look_dir)
     return (b == MB_DOOR_OUT + look_dir || b == MB_DOOR);
 }
 
+// ---- objects
+
+struct ObjectDesc {
+    Slice gfxname;
+    Slice header;
+    Slice script;
+};
+static std::vector<ObjectDesc> s_objtab;
+
+static void load_dsc()
+{
+    s_objtab.clear();
+    Slice dsc = read_file("grafix/corri01.dsc");
+    chop_until(dsc, 0); // skip until first 0 byte
+
+    while (dsc.len()) {
+        Slice header = chop(dsc, 17);
+        Slice name = chop_until(dsc, '\r');
+        Slice script = chop_until(dsc, 0);
+
+        ObjectDesc d;
+        d.gfxname = name;
+        d.header = header;
+        d.script = script;
+        s_objtab.push_back(d);
+    }
+}
+
 // ---- rendering
 
 class CorridorGfx {
     static const int DEPTH = 6;
+
+    Slice objlib;
 
     // building blocks
     PixelSlice wall_side[DEPTH];
@@ -209,7 +265,7 @@ class CorridorGfx {
     {
         U8 type;
         int offs = find_gra_item(lib, Str::fmt("%s%d", basename, idx), &type);
-        if (offs <0 || type != 5)
+        if (offs < 0 || type != 5)
             panic("bad graphics for corridor!");
         return load_delta_pixels(lib(offs));
     }
@@ -236,6 +292,11 @@ public:
         }
     }
 
+    void load_objlib(const Str &libfilename)
+    {
+        objlib = read_file(libfilename);
+    }
+
     void render(Pos pos, Dir look_dir)
     {
         Dir rev_look = rotate(look_dir, ROT_U);
@@ -255,7 +316,6 @@ public:
 
         // unclear:
         // - cover model?
-        // - door also depends on which side faces player, how does game encode this?
         for (int z=zmin; z < DEPTH; z++) { // depth *increases* towards viewer
             Pos frontpos = advance(pos, look_dir);
             MapBlock front = map_at(frontpos);
@@ -290,6 +350,24 @@ public:
                     blit_chunk(door_ahead[z], flipx);
             }
 
+            // objects
+            int revz = DEPTH-2 - z;
+            U8 item = map2_at(frontpos);
+            if (item && revz >= 0 && revz <= 2) {
+                const ObjectDesc &obj = s_objtab[item - 1];
+                Str objname = to_string(obj.gfxname);
+                U8 type;
+
+                //print_hex(objname.c_str(), obj.header);
+                PixelSlice clipscreen = vga_screen.slice(0, 32, 320, 144);
+
+                int offs = find_gra_item(objlib, objname + ".m", &type);
+                if (offs >= 0 && type == 5) {
+                    PixelSlice pixels = load_delta_pixels(objlib(offs));
+                    blit_transparent_shrink(clipscreen, 0, 0, pixels, 1 << revz, false);
+                }
+            }
+
             pos = advance(pos, rev_look);
         }
     }
@@ -301,6 +379,8 @@ static CorridorGfx *s_gfx;
 
 void corridor_init()
 {
+    load_dsc();
+
     s_gfx = new CorridorGfx;
     s_gfx->init("grafix/wand01.gra");
 }
@@ -312,8 +392,15 @@ void corridor_shutdown()
 
 void corridor_start()
 {
+    int level = get_var_int("etage");
+
     solid_fill(vga_screen, 0);
-    load_level(get_var_int("etage"));
+    load_level(level);
+
+    if (level >= 10 && level <= 42)
+        s_gfx->load_objlib("grafix/gmod01.gra");
+    else
+        s_gfx->load_objlib("grafix/gmod02.gra");
 
     // determine which palette to load
     int pal = map2[0][21]; // magic index from the game.
