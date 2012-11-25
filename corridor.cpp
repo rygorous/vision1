@@ -218,9 +218,10 @@ static bool is_visible_door(MapBlock b, Dir look_dir)
 // ---- objects
 
 struct ObjectDesc {
-    Slice gfxname;
     Slice header;
     Slice script;
+    Str gfx_name;
+    PixelSlice gfx_lr[2], gfx_m;
 };
 static std::vector<ObjectDesc> s_objtab;
 
@@ -232,14 +233,41 @@ static void load_dsc()
 
     while (dsc.len()) {
         Slice header = chop(dsc, 17);
-        Slice name = chop_until(dsc, '\r');
+        Str name = to_string(chop_until(dsc, '\r'));
         Slice script = chop_until(dsc, 0);
 
         ObjectDesc d;
-        d.gfxname = name;
         d.header = header;
         d.script = script;
+        d.gfx_name = name;
         s_objtab.push_back(d);
+    }
+}
+
+static PixelSlice load_dsc_slice(const Slice &objlib, const Str &name)
+{
+    U8 type;
+    int offs = find_gra_item(objlib, name, &type);
+    if (offs >= 0) {
+        if (type == 5)
+            return load_delta_pixels(objlib(offs));
+        else if (type == 8)
+            return load_rle_with_header(objlib(offs));
+    }
+
+    return PixelSlice();
+}
+
+static void load_dsc_gfx(const Slice &objlib)
+{
+    for (auto it = s_objtab.begin(); it != s_objtab.end(); ++it) {
+        const Str &name = it->gfx_name;
+        it->gfx_lr[1] = load_dsc_slice(objlib, name + ".r");
+        if (name[0] == '_') // underscore prefix = symmetric
+            it->gfx_lr[0] = it->gfx_lr[1];
+        else
+            it->gfx_lr[0] = load_dsc_slice(objlib, name + ".l");
+        it->gfx_m = load_dsc_slice(objlib, name + ".m");
     }
 }
 
@@ -247,8 +275,6 @@ static void load_dsc()
 
 class CorridorGfx {
     static const int DEPTH = 6;
-
-    Slice objlib;
 
     // building blocks
     PixelSlice wall_side[DEPTH];
@@ -290,11 +316,6 @@ public:
             fork[i] = load(lib, "GANG", i);
             cover[i] = (i >= 2) ? load(lib, "ABDECK", i) : PixelSlice();
         }
-    }
-
-    void load_objlib(const Str &libfilename)
-    {
-        objlib = read_file(libfilename);
     }
 
     void render(Pos pos, Dir look_dir)
@@ -351,21 +372,14 @@ public:
             }
 
             // objects
-            int revz = DEPTH-2 - z;
+            int revz = DEPTH-1 - z;
             U8 item = map2_at(frontpos);
             if (item && revz >= 0 && revz <= 2) {
                 const ObjectDesc &obj = s_objtab[item - 1];
-                Str objname = to_string(obj.gfxname);
-                U8 type;
 
-                //print_hex(objname.c_str(), obj.header);
+                print_hex(obj.gfx_name.c_str(), obj.header);
                 PixelSlice clipscreen = vga_screen.slice(0, 32, 320, 144);
-
-                int offs = find_gra_item(objlib, objname + ".m", &type);
-                if (offs >= 0 && type == 5) {
-                    PixelSlice pixels = load_delta_pixels(objlib(offs));
-                    blit_transparent_shrink(clipscreen, 0, 0, pixels, 1 << revz, false);
-                }
+                blit_transparent_shrink(clipscreen, 0, 0, obj.gfx_m, 1 << revz, false);
             }
 
             pos = advance(pos, rev_look);
@@ -397,10 +411,12 @@ void corridor_start()
     solid_fill(vga_screen, 0);
     load_level(level);
 
+    const char *libname = "grafix/gmod02.gra";
     if (level >= 10 && level <= 42)
-        s_gfx->load_objlib("grafix/gmod01.gra");
-    else
-        s_gfx->load_objlib("grafix/gmod02.gra");
+        libname = "grafix/gmod01.gra";
+
+    Slice objlib = read_file(libname);
+    load_dsc_gfx(objlib);
 
     // determine which palette to load
     int pal = map2[0][21]; // magic index from the game.
