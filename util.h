@@ -48,7 +48,7 @@ Slice read_xored(const Str &filename);
 
 int little_u16(const U8 *p);
 
-void print_hex(const char *name, const Slice &what, int bytes_per_line=16);
+void print_hex(const Str &name, const Slice &what, int bytes_per_line=16);
 void list_gra_contents(const Slice &grafile); // for debugging
 int find_gra_item(const Slice &grafile, const Str &name, U8 *type);
 

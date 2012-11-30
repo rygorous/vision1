@@ -17,13 +17,20 @@ enum Dir {
     DIR_OUT = 0,    // out = +y
     DIR_IN  = 1,    // in  = -y
     DIR_CW  = 2,    // cw  = -x
-    DIR_CCW = 3,    // ccw = +x
+    DIR_CCW = 3     // ccw = +x
 };
 
 enum Rot {
     ROT_CCW,
     ROT_CW,
-    ROT_U,
+    ROT_U 
+};
+
+enum Sector {
+    SEC_RED,
+    SEC_GREEN,
+    SEC_BLUE,
+    SEC_YELLOW
 };
 
 struct Pos {
@@ -215,6 +222,13 @@ static bool is_visible_door(MapBlock b, Dir look_dir)
     return (b == MB_DOOR_OUT + look_dir || b == MB_DOOR);
 }
 
+static Sector sector_from_pos(const Pos &p)
+{
+    static const Sector quadrant2sector[4] = { SEC_RED, SEC_GREEN, SEC_BLUE, SEC_YELLOW };
+    static const int bias = (MAPW - 1) / 8;
+    return quadrant2sector[((p.x + bias) % MAPW) / (MAPW / 4)];
+}
+
 // ---- objects
 
 struct ObjectDesc {
@@ -235,6 +249,8 @@ static void load_dsc()
         Slice header = chop(dsc, 17);
         Str name = to_string(chop_until(dsc, '\r'));
         Slice script = chop_until(dsc, 0);
+
+        //print_hex(Str::fmt("%2d %8s: ", s_objtab.size(), name), header, 17);
 
         ObjectDesc d;
         d.header = header;
@@ -296,10 +312,19 @@ class CorridorGfx {
         return load_delta_pixels(lib(offs));
     }
 
-    static void blit_chunk(const PixelSlice &what, bool flipx)
+    static void blit_chunk(const PixelSlice &what, bool flipx, Sector sec)
     {
         static const int CX = 160, CY = 32;
-        blit_transparent_shrink(vga_screen, CX, CY, what, 1, flipx);
+        static const int nremap = 2;
+        static const U8 remap_src[nremap] = { 0x02, 0x7f };
+        static const U8 remap_dst[4][nremap] = {
+            { 0x4f, 0x4a, },
+            { 0x2f, 0x2c },
+            { 0x34, 0x37 },
+            { 0x5e, 0x58 },
+        };
+
+        blit_transparent_shrink(vga_screen, CX, CY, what.replace_colors(remap_src, remap_dst[sec], nremap), 1, flipx);
     }
 
 public:
@@ -339,45 +364,49 @@ public:
         // - cover model?
         for (int z=zmin; z < DEPTH; z++) { // depth *increases* towards viewer
             Pos frontpos = advance(pos, look_dir);
+            Sector frontsec = sector_from_pos(frontpos);
             MapBlock front = map_at(frontpos);
 
             for (int lr=0; lr < 2; lr++) {
                 bool flipx = lr == 0;
-                MapBlock side = map_at(advance(pos, lrdir[lr]));
+                Pos sidepos = advance(pos, lrdir[lr]);
+                Sector sidesec = sector_from_pos(sidepos);
+                MapBlock side = map_at(sidepos);
 
                 if (side == MB_FREE) // if turn is free, draw fork
-                    blit_chunk(fork[z], flipx);
+                    blit_chunk(fork[z], flipx, frontsec);
 
                 if (front != MB_FREE)
-                    blit_chunk(wall_ahead[z], flipx);
+                    blit_chunk(wall_ahead[z], flipx, frontsec);
 
                 // handle side
                 if (side == MB_FREE) {
-                    MapBlock frontside = map_at(advance(frontpos, lrdir[lr]));
+                    Pos frontsidepos = advance(frontpos, lrdir[lr]);
+                    MapBlock frontside = map_at(frontsidepos);
                     if (is_visible_door(frontside, look_dir)) // add door decal to side
-                        blit_chunk(door_inturn[z], flipx);
+                        blit_chunk(door_inturn[z], flipx, sector_from_pos(frontsidepos));
                 } else {
-                    blit_chunk(wall_side[z], flipx);
+                    blit_chunk(wall_side[z], flipx, sidesec);
                     if (is_visible_door(side, lrdir[lr]))
-                        blit_chunk(door_side[z], flipx);
+                        blit_chunk(door_side[z], flipx, sidesec);
                 }
 
                 // fix up corners
                 if (front != MB_FREE && side != MB_FREE)
-                    blit_chunk(corner[z], flipx);
+                    blit_chunk(corner[z], flipx, frontsec);
 
                 // draw door on front wall
                 if (is_visible_door(front, look_dir))
-                    blit_chunk(door_ahead[z], flipx);
+                    blit_chunk(door_ahead[z], flipx, frontsec);
             }
 
             // objects
             int revz = DEPTH-1 - z;
-            U8 item = map2_at(frontpos);
+            U8 item = 0/* map2_at(frontpos)*/;
             if (item && revz >= 0 && revz <= 2) {
                 const ObjectDesc &obj = s_objtab[item - 1];
 
-                print_hex(obj.gfx_name.c_str(), obj.header);
+                print_hex(Str::fmt("%s (%d,%d)", obj.gfx_name.c_str(), frontpos.x, frontpos.y), obj.header(12));
                 PixelSlice clipscreen = vga_screen.slice(0, 32, 320, 144);
                 blit_transparent_shrink(clipscreen, 0, 0, obj.gfx_m, 1 << revz, false);
             }

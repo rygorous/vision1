@@ -32,9 +32,10 @@ public:
     const PixelSlice slice(int x0, int y0, int x1, int y1) const;
     PixelSlice slice(int x0, int y0, int x1, int y1) { return (PixelSlice) ((const PixelSlice&) *this).slice(x0, y0, x1, y1); }
 
-    PixelSlice clone();
+    PixelSlice clone() const;
     PixelSlice reinterpret(int neww, int newh);
-    PixelSlice make_resized(int neww, int newh);
+    PixelSlice make_resized(int neww, int newh) const;
+    PixelSlice replace_colors(const U8 *from_col, const U8 *to_col, int ncols) const;
 
     const U8 *row(int y) const          { return pixels + y * stride; }
     U8 *row(int y)                      { return pixels + y * stride; }

@@ -105,7 +105,7 @@ const PixelSlice PixelSlice::slice(int x0, int y0, int x1, int y1) const
     return s;
 }
 
-PixelSlice PixelSlice::clone()
+PixelSlice PixelSlice::clone() const
 {
     PixelSlice s = make(w, h);
     blit(s, 0, 0, *this);
@@ -124,10 +124,30 @@ PixelSlice PixelSlice::reinterpret(int neww, int newh)
     return s;
 }
 
-PixelSlice PixelSlice::make_resized(int neww, int newh)
+PixelSlice PixelSlice::make_resized(int neww, int newh) const
 {
     PixelSlice s = black(neww, newh);
     blit(s, 0, 0, *this);
+    return s;
+}
+
+PixelSlice PixelSlice::replace_colors(const U8 *from_col, const U8 *to_col, int ncols) const
+{
+    U8 map[256];
+    for (int i=0; i < 256; i++)
+        map[i] = i;
+
+    for (int i=0; i < ncols; i++)
+        map[from_col[i]] = to_col[i];
+
+    PixelSlice s = make(w, h);
+    for (int y=0; y < h; y++) {
+        const U8 *srcp = row(y);
+        U8 *dstp = s.row(y);
+        for (int x=0; x < w; x++)
+            dstp[x] = map[srcp[x]];
+    }
+
     return s;
 }
 

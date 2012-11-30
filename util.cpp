@@ -186,9 +186,9 @@ static bool is_printable(char ch)
     return (ch >= 32 && ch <= 127);
 }
 
-void print_hex(const char *desc, const Slice &what, int bytes_per_line)
+void print_hex(const Str &desc, const Slice &what, int bytes_per_line)
 {
-    printf("%s:\n", desc);
+    printf("%s", desc.c_str());
     int len = what.len();
     for (int i=0; i < len; i += bytes_per_line) {
         int j;
@@ -200,7 +200,6 @@ void print_hex(const char *desc, const Slice &what, int bytes_per_line)
             putc(is_printable(what[j]) ? what[j] : '.', stdout);
         putc('\n', stdout);
     }
-    printf("\n");
 }
 
 void list_gra_contents(const Slice &grafile)
