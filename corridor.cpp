@@ -186,7 +186,7 @@ static Pos step(const Pos &in, Dir d)
     static const int dy[4] = { 1, -1, 0, 0 };
     Pos p = in;
     p.x = (p.x + dx[d] + MAPW) % MAPW;
-    p.y = clamp(p.y + dy[d], 0, MAPH-1);
+    p.y = (p.y + dy[d] + MAPH) % MAPH; // even though we don't actually do toroidal wrap
     return p;
 }
 
@@ -219,7 +219,8 @@ static Pos advance(const Pos &in, Dir d)
 
 static bool is_visible_door(MapBlock b, Dir look_dir)
 {
-    return (b == MB_DOOR_OUT + look_dir || b == MB_DOOR);
+    return b >= MB_DOOR_OUT && b <= MB_DOOR_CCW || b == MB_DOOR;
+    //return (b == MB_DOOR_OUT + look_dir || b == MB_DOOR);
 }
 
 static Sector sector_from_pos(const Pos &p)
@@ -232,10 +233,10 @@ static Sector sector_from_pos(const Pos &p)
 // ---- objects
 
 struct ObjectDesc {
-    Slice header;
     Slice script;
     Str gfx_name;
     PixelSlice gfx_lr[2], gfx_m;
+    U8 x, y, flipX, cursor;
 };
 static std::vector<ObjectDesc> s_objtab;
 
@@ -246,6 +247,11 @@ static void load_dsc()
     chop_until(dsc, 0); // skip until first 0 byte
 
     while (dsc.len()) {
+        // header:
+        //   void *img[3];
+        //   U8 x, y;
+        //   U8 unk;
+        //   U8 cursorType, imgType;
         Slice header = chop(dsc, 17);
         Str name = to_string(chop_until(dsc, '\r'));
         Slice script = chop_until(dsc, 0);
@@ -253,9 +259,13 @@ static void load_dsc()
         //print_hex(Str::fmt("%2d %8s: ", s_objtab.size(), name), header, 17);
 
         ObjectDesc d;
-        d.header = header;
         d.script = script;
         d.gfx_name = name;
+        d.x = header[12];
+        d.y = header[13];
+        d.flipX = header[14];
+        d.cursor = header[15];
+        // imgtype = header[16]
         s_objtab.push_back(d);
     }
 }
@@ -345,6 +355,8 @@ public:
 
     void render(Pos pos, Dir look_dir)
     {
+        PixelSlice clipscreen = vga_screen.slice(0, 32, 320, 144);
+
         Dir rev_look = rotate(look_dir, ROT_U);
         Dir lrdir[2];
         lrdir[0] = rotate(look_dir, ROT_CCW);
@@ -363,6 +375,7 @@ public:
         // unclear:
         // - cover model?
         for (int z=zmin; z < DEPTH; z++) { // depth *increases* towards viewer
+            int revz = DEPTH-1 - z;
             Pos frontpos = advance(pos, look_dir);
             Sector frontsec = sector_from_pos(frontpos);
             MapBlock front = map_at(frontpos);
@@ -372,6 +385,8 @@ public:
                 Pos sidepos = advance(pos, lrdir[lr]);
                 Sector sidesec = sector_from_pos(sidepos);
                 MapBlock side = map_at(sidepos);
+                Pos frontsidepos = advance(frontpos, lrdir[lr]);
+                MapBlock frontside = map_at(frontsidepos);
 
                 if (side == MB_FREE) // if turn is free, draw fork
                     blit_chunk(fork[z], flipx, frontsec);
@@ -381,8 +396,6 @@ public:
 
                 // handle side
                 if (side == MB_FREE) {
-                    Pos frontsidepos = advance(frontpos, lrdir[lr]);
-                    MapBlock frontside = map_at(frontsidepos);
                     if (is_visible_door(frontside, look_dir)) // add door decal to side
                         blit_chunk(door_inturn[z], flipx, sector_from_pos(frontsidepos));
                 } else {
@@ -398,17 +411,33 @@ public:
                 // draw door on front wall
                 if (is_visible_door(front, look_dir))
                     blit_chunk(door_ahead[z], flipx, frontsec);
+                
+                // objects on the side
+                if (front == MB_FREE && frontside != MB_FREE) {
+                    U8 objtype = map2_at(frontsidepos);
+                    if (objtype && revz <= 2) {
+                        static const int ytab[3] = { 0, 30, 45 };
+                        const ObjectDesc &obj = s_objtab[objtype - 1];
+                        blit_transparent_shrink(clipscreen, 160 - flipx, ytab[revz], obj.gfx_lr[lr ^ obj.flipX], 1 << revz, flipx);
+                    }
+                }
             }
 
-            // objects
-            int revz = DEPTH-1 - z;
-            U8 item = 0/* map2_at(frontpos)*/;
-            if (item && revz >= 0 && revz <= 2) {
-                const ObjectDesc &obj = s_objtab[item - 1];
+            // front objects
+            U8 objtype = map2_at(frontpos);
+            if (objtype && revz <= 2 && z == zmin) {
+                static const int ytab[2][3] = {
+                    { 0, 26, 43 },
+                    { 0, 31, 45 }
+                };
+                const ObjectDesc &obj = s_objtab[objtype - 1];
 
-                print_hex(Str::fmt("%s (%d,%d)", obj.gfx_name.c_str(), frontpos.x, frontpos.y), obj.header(12));
-                PixelSlice clipscreen = vga_screen.slice(0, 32, 320, 144);
-                blit_transparent_shrink(clipscreen, 0, 0, obj.gfx_m, 1 << revz, false);
+                //printf("%02x %s (%d,%d) rz=%d\n", item, obj.gfx_name.c_str(), pos.x, pos.y, revz);
+                int x = obj.x >> revz;
+                int y = ytab[obj.y != 0][revz] + (obj.y >> revz);
+                x = obj.flipX ? 159 + x : 160 - x;
+
+                blit_transparent_shrink(clipscreen, x, y, obj.gfx_m, 1 << revz, obj.flipX != 0);
             }
 
             pos = advance(pos, rev_look);
