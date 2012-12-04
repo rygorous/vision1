@@ -93,6 +93,11 @@ enum MapBlock {
     MB_SOLID    = 128,
 };
 
+enum Map2Block {
+	M2B_EMPTY	= 0,
+	M2B_LIFT	= 2,
+};
+
 static const int NLEVELS = 50;
 static const int MAPW = 80;
 static const int MAPH = 25; // concentric circles
@@ -202,10 +207,12 @@ static MapBlock map_at(const Pos &p)
 static U8 map2_at(const Pos &p)
 {
     assert(p.x >= 0 && p.x < MAPW);
-    if (p.y >= 0 && p.y < MAPH)
+	if (p.y == 0) // game does this only when looking in
+		return M2B_LIFT;
+    else if (p.y >= 1 && p.y < MAPH)
         return map2[p.y][p.x];
     else
-        return 0;
+        return M2B_EMPTY;
 }
 
 static Pos advance(const Pos &in, Dir d)
@@ -432,7 +439,7 @@ public:
                 };
                 const ObjectDesc &obj = s_objtab[objtype - 1];
 
-                //printf("%02x %s (%d,%d) rz=%d\n", item, obj.gfx_name.c_str(), pos.x, pos.y, revz);
+                //printf("%02x %s (%d,%d) rz=%d\n", objtype, obj.gfx_name.c_str(), pos.x, pos.y, revz);
                 int x = obj.x >> revz;
                 int y = ytab[obj.y != 0][revz] + (obj.y >> revz);
                 x = obj.flipX ? 159 + x : 160 - x;
