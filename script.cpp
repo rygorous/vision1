@@ -942,7 +942,16 @@ static void cmd_x0()
 
 static void cmd_x1()
 {
-	printf("X1?\n");
+	int level = get_var_int("etage");
+	int x = get_var_int("gangx");
+	int y = get_var_int("gangy");
+	int d = get_var_int("gangd");
+	set_var_str("multi$", Str::fmt("%02d%02d%02d%02d", level, x, y, d));
+}
+
+static void cmd_x3()
+{
+	printf("save games disabled\n");
 }
 
 static struct CommandDesc
@@ -990,6 +999,7 @@ static struct CommandDesc
 	"write",		2,	false,	cmd_write,
 	"x0",			2,	false,	cmd_x0,
 	"x1",			2,	false,	cmd_x1,
+	"x3",			2,	false,	cmd_x3,
 };
 
 static void run_script(Slice code, bool init)
