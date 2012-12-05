@@ -428,7 +428,17 @@ public:
                     if (objtype && revz <= 2) {
                         static const int ytab[3] = { 0, 30, 45 };
                         const ObjectDesc &obj = s_objtab[objtype - 1];
-                        blit_transparent_shrink(clipscreen, 160 - flipx, ytab[revz], obj.gfx_lr[lr ^ obj.flipX], 1 << revz, flipx);
+
+						const PixelSlice &gfx = obj.gfx_lr[lr ^ obj.flipX];
+						int x = 160 - flipx;
+						int y = ytab[revz];
+
+                        blit_transparent_shrink(clipscreen, x, y, gfx, 1 << revz, flipx);
+						if (revz == 0) {
+							int hotidx = flipx ? 7 : 5;
+							blit_to_mask(hotspots, hotidx, x, y, gfx, flipx);
+							game_hotspot_define(hotidx, obj.cursor);
+						}
                     }
                 }
             }
@@ -448,7 +458,7 @@ public:
 
                 blit_transparent_shrink(clipscreen, x, y, obj.gfx_m, 1 << revz, obj.flipX != 0);
 				if (revz == 0) {
-					blit_to_mask(hotspots, 6, x >> 1, y >> 1, obj.gfx_m, obj.flipX != 0);
+					blit_to_mask(hotspots, 6, x, y, obj.gfx_m, obj.flipX != 0);
 					game_hotspot_define(6, obj.cursor);
 				}
             }

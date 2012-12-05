@@ -225,6 +225,9 @@ void blit_transparent_shrink(PixelSlice &dest, int dx, int dy, const PixelSlice 
 
 void blit_to_mask(PixelSlice &dest, U8 color, int dx, int dy, const PixelSlice &src, bool flipX)
 {
+	dx >>= 1;
+	dy >>= 1;
+
 	Rect sr;
 	if (!clipblit(&sr, dx, dy, dest, src, 2))
 		return;
