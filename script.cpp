@@ -934,7 +934,10 @@ static void cmd_write()
 
 static void cmd_x0()
 {
-	printf("X0?\n");
+	set_var_int("tom", 0);
+	set_var_int("tom1", 0);
+	set_var_int("tom2", 0);
+	set_var_int("tom3", 0);
 }
 
 static void cmd_x1()
