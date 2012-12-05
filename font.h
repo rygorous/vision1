@@ -2,6 +2,7 @@
 #define __FONT_H__
 
 class PixelSlice;
+class Str;
 
 class Font { // abstract interface
 public:
@@ -13,6 +14,7 @@ public:
 
     void print(PixelSlice &target, int x, int y, const char *str) const;
     int str_width(const char *str) const;
+    int str_width(const Str &str) const;
 };
 
 extern Font *bigfont, *bigfont_highlight;

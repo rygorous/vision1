@@ -71,6 +71,11 @@ int Font::str_width(const char *str) const
     return str_width(str, strlen(str));
 }
 
+int Font::str_width(const Str &str) const
+{
+    return str_width(&str[0], str.size());
+}
+
 class BitmapFont : public Font {
 public:
     BitmapFont(const char *filename, const U8 *widths, const U8 *palette);

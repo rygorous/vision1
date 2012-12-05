@@ -135,6 +135,7 @@ static PixelSlice scroll_getscreen()
 
 static PixelSlice print_saveunder;
 static int print_savey;
+static const int CENTERED = -1;
 
 static void print_clear()
 {
@@ -166,28 +167,38 @@ static void print_getsize(int *w, int *h, const char *str)
     }
 }
 
-static void print_text(const char *str)
+static void print_text_impl(int x, int y, int h, const char *str)
 {
     print_clear();
 
-    int w, h;
-    print_getsize(&w, &h, str);
-
     PixelSlice screen = scroll_getscreen();
-    print_savey = 126 - h/2;
-    print_saveunder = screen.slice(0, print_savey, vga_screen.width(), print_savey + h).clone();
+    print_savey = y;
+    print_saveunder = screen.slice(0, y, vga_screen.width(), y + h).clone();
 
-    int y = print_savey;
     while (*str) {
         int len = print_getlinelen(str);
         int w = bigfont->str_width(str, len);
-        bigfont->print(screen, (320 - w) / 2, y, str, len);
+        bigfont->print(screen, (x == CENTERED) ? (320 - w) / 2 : x, y, str, len);
 
         y += 10;
         str += len;
         if (*str == '#')
             str++;
     }
+}
+
+static void print_text_at(int x, int y, const char *str)
+{
+    int w, h;
+    print_getsize(&w, &h, str);
+    print_text_impl(x, y, h, str);
+}
+
+static void print_text(const char *str)
+{
+    int w, h;
+    print_getsize(&w, &h, str);
+    print_text_impl(CENTERED, 126 - h/2, h, str);
 }
 
 // ---- hot spots
@@ -919,39 +930,93 @@ static void cmd_killhotspot()
 
 static void cmd_write()
 {
-	Slice xw = scan_word();
-	int x = 0;
-	int y = int_value_word();
-	Str text = to_string(line);
+    Slice xw = scan_word();
+    int x = 0;
+    int y = int_value_word();
+    Str text = to_string(line);
 
-	if (xw.len() && isdigit(xw[0]))
-		x = int_value(xw);
-	else if (to_string(xw) == "c") // center
-		x = (vga_screen.width() - bigfont->str_width(text.c_str())) / 2;
+    if (xw.len() && isdigit(xw[0]))
+        x = int_value(xw);
+    else if (to_string(xw) == "c") // center
+        x = CENTERED;
 
-	bigfont->print(scroll_getscreen(), x, y, text.c_str());
+    print_text_at(x, y, text.c_str());
 }
 
 static void cmd_x0()
 {
-	set_var_int("tom", 0);
-	set_var_int("tom1", 0);
-	set_var_int("tom2", 0);
-	set_var_int("tom3", 0);
+    set_var_int("tom", 0);
+    set_var_int("tom1", 0);
+    set_var_int("tom2", 0);
+    set_var_int("tom3", 0);
 }
 
 static void cmd_x1()
 {
-	int level = get_var_int("etage");
-	int x = get_var_int("gangx");
-	int y = get_var_int("gangy");
-	int d = get_var_int("gangd");
-	set_var_str("multi$", Str::fmt("%02d%02d%02d%02d", level, x, y, d));
+    int level = get_var_int("etage");
+    int x = get_var_int("gangx");
+    int y = get_var_int("gangy");
+    int d = get_var_int("gangd");
+    set_var_str("multi$", Str::fmt("%02d%02d%02d%02d", level, x, y, d));
 }
 
 static void cmd_x3()
 {
-	printf("save games disabled\n");
+    printf("save games disabled\n");
+}
+
+static Str get_yellow_field(const Slice &fields, int idx)
+{
+    Slice rest = fields;
+    Slice last;
+    do {
+        last = chop_until(rest, 0);
+    } while (idx-- > 0);
+
+    return to_string(last);
+}
+
+static Str get_yellow_name(const Slice &fields)
+{
+    Str name = get_yellow_field(fields, 0);
+    if (name != "$")
+        return name;
+
+    // need to substitute in player name
+    Str first_name = get_var_str("vorname$");
+    Str last_name = get_var_str("name$");
+    Str concat = first_name + " " + last_name;
+
+    if (bigfont->str_width(concat) > 78)
+        return first_name;
+    else
+        return concat;
+}
+
+static void cmd_xdescribe()
+{
+    Str location = get_var_str("multi$");
+    Str name = location;
+
+    // iterate over yellow pages to find location name
+    Slice yellow = read_file("data/yellow.dat");
+    while (yellow.len() && yellow[0] != 0xff) {
+        Slice header = chop(yellow, 7);
+        Slice fields = chop(yellow, header[6]);
+
+        if (get_yellow_field(fields, 2) == location) {
+            name = get_yellow_name(fields);
+            break;
+        }
+    }
+
+    print_text_at(CENTERED, 40, name.c_str());
+}
+
+static void cmd_xor()
+{
+    Str varname = str_word();
+    set_var_int(varname, get_var_int(varname) ^ int_value_word());
 }
 
 static struct CommandDesc
@@ -996,10 +1061,12 @@ static struct CommandDesc
     "time",         2,  false,  cmd_time,
     "random",       2,  false,  cmd_random,
     "wait",         2,  false,  cmd_wait,
-	"write",		2,	false,	cmd_write,
-	"x0",			2,	false,	cmd_x0,
-	"x1",			2,	false,	cmd_x1,
-	"x3",			2,	false,	cmd_x3,
+    "write",        2,  false,  cmd_write,
+    "x0",           2,  false,  cmd_x0,
+    "x1",           2,  false,  cmd_x1,
+    "x3",           2,  false,  cmd_x3,
+    "xdescribe",    2,  false,  cmd_xdescribe,
+    "xor",          2,  false,  cmd_xor,
 };
 
 static void run_script(Slice code, bool init)
@@ -1089,16 +1156,16 @@ static void game_reset()
 
 static void handle_hot_click(int hot)
 {
-	hotspot_clicked = hot;
-	if (!hot)
-		return;
+    hotspot_clicked = hot;
+    if (!hot)
+        return;
 
-	if (hot != hotspot_last)
-		hotspot_counter = 1;
-	else
-		hotspot_counter++;
-	hotspot_last = hot;
-	cursor_override = MC_NULL;
+    if (hot != hotspot_last)
+        hotspot_counter = 1;
+    else
+        hotspot_counter++;
+    hotspot_last = hot;
+    cursor_override = MC_NULL;
 }
 
 static void game_script_tick_room()
@@ -1130,7 +1197,7 @@ static void game_script_tick_room()
     hotspot_clicked = 0;
     if (button_down) {
         print_clear();
-		handle_hot_click(hotspot_get(mouse_x, mouse_y));
+        handle_hot_click(hotspot_get(mouse_x, mouse_y));
 
         run_script(s_script, false);
     }
@@ -1149,11 +1216,13 @@ static void game_script_tick_corridor()
     int button_down = mouse_button & ~old_button;
     old_button = mouse_button;
 
-	hotspot_clicked = 0;
-    if (button_down && hot) {
-		handle_hot_click(hot);
-		corridor_click(hot);
-	}
+    hotspot_clicked = 0;
+    if (button_down) {
+        print_clear();
+        handle_hot_click(hot);
+        if (hot)
+            corridor_click(hot);
+    }
 }
 
 void game_script_tick()
@@ -1191,9 +1260,9 @@ void game_script_tick()
 
 void game_script_run(const Slice &script)
 {
-	assert(s_mode != GM_ROOM);
-	printf("running script:\n-\n%s\n-\n", to_string(script).c_str());
-	run_script(script, false);
+    assert(s_mode != GM_ROOM);
+    printf("running script:\n-\n%s\n-\n", to_string(script).c_str());
+    run_script(script, false);
 }
 
 void game_shutdown()
@@ -1214,18 +1283,18 @@ const U8 *game_get_screen_row(int y)
 
 PixelSlice &game_get_hotspots()
 {
-	return hotspots;
+    return hotspots;
 }
 
 void game_hotspot_define(int which, char code)
 {
-	char str[2] = { code, 0 };
-	cursor_define(which, str);
+    char str[2] = { code, 0 };
+    cursor_define(which, str);
 }
 
 void game_hotspot_define_multi(int which, const char *codes)
 {
-	cursor_define(which, codes);
+    cursor_define(which, codes);
 }
 
 void game_hotspot_disable(int which)
