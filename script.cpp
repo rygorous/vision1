@@ -13,6 +13,19 @@
 #include <ctype.h>
 #include <vector>
 
+// ---- game flow vars
+
+enum GameMode
+{
+    GM_ROOM,
+    GM_CORRIDOR
+};
+
+static Slice s_script;
+static Str s_command, s_reload_command;
+static GameMode s_mode = GM_ROOM;
+static bool s_reload = false;
+
 // ---- game tick
 
 namespace {
@@ -388,6 +401,15 @@ static Str str_word()
     return to_string(scan_word());
 }
 
+static Str unquoted_str_value_word()
+{
+    Str value = str_word();
+    if (value.back() == '$')
+        return get_var_str(value);
+    else
+        return value;
+}
+
 static bool has_prefixi(const Slice &value, const char *str)
 {
     U32 pos = 0;
@@ -706,18 +728,7 @@ static void cmd_fade()
 
 static void cmd_exec()
 {
-    Slice what = scan_word();
-    if (is_equal(what, "dialog")) {
-        Str charname = str_word();
-        Str dlgname = str_word();
-
-        scroll_disable();
-        run_dialog(charname.c_str(), dlgname.c_str());
-    } else {
-        printf("don't know how to exec: ");
-        print(what);
-        printf("\n");
-    }
+    game_run_command(to_string(line));
 }
 
 static void cmd_random()
@@ -771,7 +782,7 @@ static void cmd_time()
 
 static void cmd_load()
 {
-    game_command(to_string(line).c_str());
+    game_defer_command(to_string(line).c_str());
 }
 
 static void cmd_black()
@@ -1019,6 +1030,19 @@ static void cmd_xor()
     set_var_int(varname, get_var_int(varname) ^ int_value_word());
 }
 
+static void cmd_next()
+{
+    print_clear();
+    Str dest = unquoted_str_value_word();
+    game_defer_command("welt " + dest);
+}
+
+static void cmd_return()
+{
+    print_clear();
+    game_reload_room();
+}
+
 static struct CommandDesc
 {
     char *name;
@@ -1048,10 +1072,12 @@ static struct CommandDesc
     "killhotspot",  2,  false,  cmd_killhotspot,
     "load",         2,  false,  cmd_load,
     "megaani",      2,  false,  cmd_megaanim,
+    "next",         2,  false,  cmd_next,
     "off",          2,  false,  cmd_off,
     "pic",          2,  false,  cmd_pic,
     "pointer",      2,  false,  cmd_pointer,
     "print",        2,  false,  cmd_print,
+    "return",       2,  false,  cmd_return,
     "scroll",       2,  false,  cmd_scroll,
     "set",          2,  false,  cmd_set,
     "song",         2,  false,  cmd_song,
@@ -1111,27 +1137,47 @@ static void run_script(Slice code, bool init)
         if (i == ARRAY_COUNT(commands)) {
             print(command);
             printf("? (line=\"%s\")\n", to_string(line).c_str());
-            //assert(0);
         }
+
+        // if this resulted in a global command, stop
+        if (s_reload || !s_command.empty())
+            break;
     }
 }
 
 // ---- outer logic
 
-enum GameMode
-{
-    GM_ROOM,
-    GM_CORRIDOR
-};
-
-static Slice s_script;
-static Str s_command;
-static GameMode s_mode = GM_ROOM;
-
-void game_command(const char *cmd)
+void game_defer_command(const Str &cmd)
 {
     assert(s_command.empty());
     s_command = cmd;
+}
+
+void game_run_command(const Str &cmd)
+{
+    if (has_prefixi(cmd, "welt ")) {
+        Str filename = "data/" + cmd.substr(5) + ".par";
+
+        s_mode = GM_ROOM;
+        s_script = read_xored(filename.c_str());
+        run_script(s_script, true);
+    } else if (has_prefixi(cmd, "gang ")) {
+        // command parsing?
+        s_mode = GM_CORRIDOR;
+        hotspots = PixelSlice::black(SCROLL_SCREEN_WIDTH / 2, SCROLL_WINDOW_HEIGHT / 2);
+
+        cursor_define(1, "urvl");
+        corridor_start();
+        corridor_render();
+    } else if (has_prefixi(cmd, "dialog ")) {
+        Str parse = cmd;
+        chop_until(parse, ' ');
+        Str charname = chop_until(parse, ' ');
+        Str dlgname = chop_until(parse, ' ');
+
+        run_dialog(charname.c_str(), dlgname.c_str());
+    } else
+        panic("bad game command: \"%s\"", cmd.c_str());
 }
 
 void game_frame()
@@ -1227,28 +1273,17 @@ static void game_script_tick_corridor()
 
 void game_script_tick()
 {
+    if (s_command.empty() && s_reload) {
+        s_reload = false;
+        s_command = s_reload_command;
+    }
+
     if (!s_command.empty()) {
         game_reset();
+        s_reload_command = s_command;
+        s_command = "";
 
-        if (has_prefixi(s_command, "welt ")) {
-            Str filename = "data/" + s_command.substr(5) + ".par";
-            s_command = "";
-
-            s_mode = GM_ROOM;
-            s_script = read_xored(filename.c_str());
-            run_script(s_script, true);
-        } else if (has_prefixi(s_command, "gang ")) {
-            // command parsing?
-            s_command = "";
-
-            s_mode = GM_CORRIDOR;
-            hotspots = PixelSlice::black(SCROLL_SCREEN_WIDTH / 2, SCROLL_WINDOW_HEIGHT / 2);
-
-            cursor_define(1, "urvl");
-            corridor_start();
-            corridor_render();
-        } else
-            panic("bad game command: \"%s\"", s_command.c_str());
+        game_run_command(s_reload_command);
     } else {
         switch (s_mode) {
         case GM_ROOM:       game_script_tick_room(); break;
@@ -1263,6 +1298,11 @@ void game_script_run(const Slice &script)
     assert(s_mode != GM_ROOM);
     printf("running script:\n-\n%s\n-\n", to_string(script).c_str());
     run_script(script, false);
+}
+
+void game_reload_room()
+{
+    s_reload = true;
 }
 
 void game_shutdown()

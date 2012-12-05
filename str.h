@@ -53,6 +53,9 @@ Str operator +(const Str &a, const Str &b);
 Str tolower(const Str &s);
 Str replace_ext(const Str &filename, const Str &newext);
 
+Str chop(Str &from, int len); // return first len chars of "from", modifies from to be the reset
+Str chop_until(Str &from, char sep); // chop until first occurence of sep - sep itself isn't included on either side
+
 // All case insensitive
 bool has_prefixi(const char *str, const char *prefix);
 inline bool has_prefixi(const Str &str, const char *prefix) { return has_prefixi(str.c_str(), prefix); }

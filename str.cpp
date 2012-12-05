@@ -186,6 +186,25 @@ Str replace_ext(const Str &filename, const Str &newext)
         return filename.substr(0, (int)(dot - &filename[0])) + newext;
 }
 
+Str chop(Str &from, int len)
+{
+    Str ret = from.substr(0, len);
+    from = from.substr(len);
+    return ret;
+}
+
+Str chop_until(Str &from, char sep)
+{
+    int len = from.size();
+    int pos = 0;
+    while (pos < len && from[pos] != sep)
+        pos++;
+
+    Str ret = from.substr(0, pos);
+    from = from.substr(pos + 1);
+    return ret;
+}
+
 bool has_prefixi(const char *str, const char *prefix)
 {
     int pos = 0;

@@ -3,12 +3,15 @@
 
 class Slice;
 class PixelSlice;
+class Str;
 
 bool eval_bool_expr(const Slice &expr);
-void game_command(const char *cmd);
+void game_defer_command(const Str &cmd);
+void game_run_command(const Str &cmd);
 void game_frame();
 void game_script_tick();
 void game_script_run(const Slice &script);
+void game_reload_room();
 void game_shutdown();
 
 const unsigned char *game_get_screen_row(int y);

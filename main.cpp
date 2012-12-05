@@ -13,6 +13,7 @@
 #include "script.h"
 #include "mouse.h"
 #include "corridor.h"
+#include "str.h"
 
 #pragma comment(lib, "winmm.lib")
 
@@ -257,11 +258,11 @@ int main(int argc, char **argv)
 
 	ShowWindow(hWnd, SW_SHOW);
 
-    //game_command("welt init");
-    //game_command("welt 08360900");
-    //game_command("welt dextras");
-    //game_command("welt snack");
-    game_command("gang #");
+    //game_defer_command("welt init");
+    //game_defer_command("welt 08360900");
+    //game_defer_command("welt dextras");
+    //game_defer_command("welt snack");
+    game_defer_command("gang #");
 
     try {
         for (;;) {
