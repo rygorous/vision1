@@ -264,6 +264,7 @@ static int nest_counter;
 
 static int hotspot_clicked = 0;
 static int hotspot_last = 0;
+static int hotspot_counter = 0;
 static MouseCursor cursor_override;
 static char cursors[256];
 
@@ -587,7 +588,7 @@ static void cmd_if()
         else if (has_prefixi(line, "hot"))
             cond = need_int_literal(line(3)) == hotspot_clicked;
         else if (has_prefixi(line, "cnt"))
-            cond = need_int_literal(line(3)) == 1234; // TODO real impl!
+            cond = need_int_literal(line(3)) == hotspot_counter;
         else if (has_prefixi(line, "key"))
             cond = false; // TODO real impl!
         else // assume it's an expression
@@ -916,6 +917,31 @@ static void cmd_killhotspot()
     printf("KILLHOTSPOT %d\n", which);
 }
 
+static void cmd_write()
+{
+	Slice xw = scan_word();
+	int x = 0;
+	int y = int_value_word();
+	Str text = to_string(line);
+
+	if (xw.len() && isdigit(xw[0]))
+		x = int_value(xw);
+	else if (to_string(xw) == "c") // center
+		x = (vga_screen.width() - bigfont->str_width(text.c_str())) / 2;
+
+	bigfont->print(scroll_getscreen(), x, y, text.c_str());
+}
+
+static void cmd_x0()
+{
+	printf("X0?\n");
+}
+
+static void cmd_x1()
+{
+	printf("X1?\n");
+}
+
 static struct CommandDesc
 {
     char *name;
@@ -958,6 +984,9 @@ static struct CommandDesc
     "time",         2,  false,  cmd_time,
     "random",       2,  false,  cmd_random,
     "wait",         2,  false,  cmd_wait,
+	"write",		2,	false,	cmd_write,
+	"x0",			2,	false,	cmd_x0,
+	"x1",			2,	false,	cmd_x1,
 };
 
 static void run_script(Slice code, bool init)
@@ -1045,6 +1074,20 @@ static void game_reset()
     hotspot_clicked = 0;
 }
 
+static void handle_hot_click(int hot)
+{
+	hotspot_clicked = hot;
+	if (!hot)
+		return;
+
+	if (hot != hotspot_last)
+		hotspot_counter = 1;
+	else
+		hotspot_counter++;
+	hotspot_last = hot;
+	cursor_override = MC_NULL;
+}
+
 static void game_script_tick_room()
 {
     int hot = hotspot_get(mouse_x, mouse_y);
@@ -1074,11 +1117,7 @@ static void game_script_tick_room()
     hotspot_clicked = 0;
     if (button_down) {
         print_clear();
-        if (int hot = hotspot_get(mouse_x, mouse_y)) {
-            hotspot_clicked = hot;
-            hotspot_last = hot;
-            cursor_override = MC_NULL;
-        }
+		handle_hot_click(hotspot_get(mouse_x, mouse_y));
 
         run_script(s_script, false);
     }
@@ -1097,10 +1136,11 @@ static void game_script_tick_corridor()
     int button_down = mouse_button & ~old_button;
     old_button = mouse_button;
 
-    if (button_down) {
-        corridor_click(cursor);
-        corridor_render();
-    }
+	hotspot_clicked = 0;
+    if (button_down && hot) {
+		handle_hot_click(hot);
+		corridor_click(hot);
+	}
 }
 
 void game_script_tick()
@@ -1134,6 +1174,13 @@ void game_script_tick()
         default:            panic("bad state"); break;
         }
     }
+}
+
+void game_script_run(const Slice &script)
+{
+	assert(s_mode != GM_ROOM);
+	printf("running script:\n-\n%s\n-\n", to_string(script).c_str());
+	run_script(script, false);
 }
 
 void game_shutdown()

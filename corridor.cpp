@@ -265,6 +265,11 @@ static void load_dsc()
         Str name = to_string(chop_until(dsc, '\r'));
         Slice script = chop_until(dsc, 0);
 
+		// fix up script
+		for (U32 i=0; i < script.len(); i++)
+			if (script[i] == '^')
+				script[i] = '\n';
+
         //print_hex(Str::fmt("%2d %8s: ", s_objtab.size(), name), header, 17);
 
         ObjectDesc d;
@@ -322,6 +327,8 @@ class CorridorGfx {
     PixelSlice cover[DEPTH];
     PixelSlice empty;
 
+	Slice hot_script[3];
+
     static PixelSlice load(const Slice &lib, const char *basename, int idx)
     {
         U8 type;
@@ -366,6 +373,9 @@ public:
     {
         PixelSlice clipscreen = vga_screen.slice(0, 32, 320, 144);
 		PixelSlice &hotspots = game_get_hotspots();
+
+		for (int i=0; i < 3; i++)
+			hot_script[i] = Slice();
 
         Dir rev_look = rotate(look_dir, ROT_U);
         Dir lrdir[2];
@@ -438,6 +448,7 @@ public:
 							int hotidx = flipx ? 7 : 5;
 							blit_to_mask(hotspots, hotidx, x, y, gfx, flipx);
 							game_hotspot_define(hotidx, obj.cursor);
+							hot_script[hotidx - 5] = obj.script;
 						}
                     }
                 }
@@ -460,12 +471,21 @@ public:
 				if (revz == 0) {
 					blit_to_mask(hotspots, 6, x, y, obj.gfx_m, obj.flipX != 0);
 					game_hotspot_define(6, obj.cursor);
+					hot_script[1] = obj.script;
 				}
             }
 
             pos = advance(pos, rev_look);
         }
     }
+
+	Slice get_script(int hot)
+	{
+		if (hot >= 5 && hot <= 7)
+			return hot_script[hot - 5];
+		else
+			return Slice();
+	}
 };
 
 // ---- corridor main
@@ -521,20 +541,32 @@ void corridor_render()
     s_gfx->render(player_pos(), player_dir());
 }
 
-void corridor_click(int code)
+void corridor_click(int hot)
 {
     Dir dir = player_dir();
 
-    switch (code) {
-    case MC_TURNL:      set_player_dir(rotate(dir, ROT_CCW)); break;
-    case MC_TURNR:      set_player_dir(rotate(dir, ROT_CW)); break;
-    case MC_TURNU:      set_player_dir(rotate(dir, ROT_U)); break;
-    case MC_FORWARD:
+    switch (hot) {
+	case 1: set_player_dir(rotate(dir, ROT_U));		corridor_render(); break; // U-turn
+	case 2: set_player_dir(rotate(dir, ROT_CW));	corridor_render(); break; // turn R
+	case 4: set_player_dir(rotate(dir, ROT_CCW));	corridor_render(); break; // turn L
+	case 3: // forward
         {
             Pos newpos = advance(player_pos(), dir);
-            if (map_at(newpos) == MB_FREE)
+            if (map_at(newpos) == MB_FREE) {
                 set_player_pos(newpos);
+				corridor_render();
+			}
         }
         break;
+
+	default:
+		{
+			Slice script = s_gfx->get_script(hot);
+			if (script) {
+				corridor_render();
+				game_script_run(script);
+			}
+		}
+		break;
     }
 }
