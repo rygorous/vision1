@@ -52,6 +52,7 @@ void solid_fill(PixelSlice &dest, int color);
 void blit(PixelSlice &dest, int dx, int dy, const PixelSlice &src);
 void blit_transparent(PixelSlice &dest, int dx, int dy, const PixelSlice &src);
 void blit_transparent_shrink(PixelSlice &dest, int dx, int dy, const PixelSlice &src, int shrink, bool flipX);
+void blit_to_mask(PixelSlice &dest, U8 color, int dx, int dy, const PixelSlice &src, bool flipX);
 
 class Animation { // abstract interface
 public:

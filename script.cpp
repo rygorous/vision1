@@ -1120,10 +1120,7 @@ void game_script_tick()
             s_command = "";
 
             s_mode = GM_CORRIDOR;
-            Slice hotfile = read_file("grafix/corrihot.dat");
             hotspots = PixelSlice::black(SCROLL_SCREEN_WIDTH / 2, SCROLL_WINDOW_HEIGHT / 2);
-            if (hotfile.len() == hotspots.width() * hotspots.height())
-                memcpy(hotspots.row(0), &hotfile[0], hotspots.width() * hotspots.height());
 
             cursor_define(1, "urvl");
             corridor_start();
@@ -1153,6 +1150,22 @@ const U8 *game_get_screen_row(int y)
         return scroll_window.ptr(scroll_x, y);
 
     return vga_screen.row(y);
+}
+
+PixelSlice &game_get_hotspots()
+{
+	return hotspots;
+}
+
+void game_hotspot_define(int which, char code)
+{
+	char str[2] = { code, 0 };
+	cursor_define(which, str);
+}
+
+void game_hotspot_define_multi(int which, const char *codes)
+{
+	cursor_define(which, codes);
 }
 
 void game_hotspot_disable(int which)

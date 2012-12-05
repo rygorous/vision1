@@ -223,6 +223,36 @@ void blit_transparent_shrink(PixelSlice &dest, int dx, int dy, const PixelSlice 
     }
 }
 
+void blit_to_mask(PixelSlice &dest, U8 color, int dx, int dy, const PixelSlice &src, bool flipX)
+{
+	Rect sr;
+	if (!clipblit(&sr, dx, dy, dest, src, 2))
+		return;
+
+	int w = (sr.x1 - sr.x0) / 2;
+	int stepx = 2;
+	int sxstart = sr.x0;
+
+	if (flipX) {
+		stepx = -stepx;
+		sxstart = sr.x1-2;
+		dx--;
+	}
+
+	for (int sy=sr.y0; sy < sr.y1; sy += 2) {
+		U8 *d = dest.ptr(dx + sxstart/2, dy + sy/2);
+		const U8 *s0 = src.ptr(sxstart, sy + 0);
+		const U8 *s1 = src.ptr(sxstart, sy + 1);
+
+		for (int x=0; x < w; x++) {
+			int xs = x*stepx;
+			U8 ored = s0[xs] | s0[xs + 1] | s1[xs] | s1[xs + 1];
+			if (ored)
+				d[x] = color;
+		}
+	}
+}
+
 // ---- file loading
 
 static void decode_rle(U8 *dst, const U8 *src)

@@ -5,6 +5,7 @@
 #include "graphics.h"
 #include "vars.h"
 #include "mouse.h"
+#include "script.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -191,7 +192,7 @@ static Pos step(const Pos &in, Dir d)
     static const int dy[4] = { 1, -1, 0, 0 };
     Pos p = in;
     p.x = (p.x + dx[d] + MAPW) % MAPW;
-    p.y = (p.y + dy[d] + MAPH) % MAPH; // even though we don't actually do toroidal wrap
+    p.y = (p.y + dy[d] + MAPH) % MAPH;
     return p;
 }
 
@@ -243,7 +244,8 @@ struct ObjectDesc {
     Slice script;
     Str gfx_name;
     PixelSlice gfx_lr[2], gfx_m;
-    U8 x, y, flipX, cursor;
+    U8 x, y, flipX;
+	char cursor;
 };
 static std::vector<ObjectDesc> s_objtab;
 
@@ -363,6 +365,7 @@ public:
     void render(Pos pos, Dir look_dir)
     {
         PixelSlice clipscreen = vga_screen.slice(0, 32, 320, 144);
+		PixelSlice &hotspots = game_get_hotspots();
 
         Dir rev_look = rotate(look_dir, ROT_U);
         Dir lrdir[2];
@@ -439,12 +442,15 @@ public:
                 };
                 const ObjectDesc &obj = s_objtab[objtype - 1];
 
-                //printf("%02x %s (%d,%d) rz=%d\n", objtype, obj.gfx_name.c_str(), pos.x, pos.y, revz);
                 int x = obj.x >> revz;
                 int y = ytab[obj.y != 0][revz] + (obj.y >> revz);
                 x = obj.flipX ? 159 + x : 160 - x;
 
                 blit_transparent_shrink(clipscreen, x, y, obj.gfx_m, 1 << revz, obj.flipX != 0);
+				if (revz == 0) {
+					blit_to_mask(hotspots, 6, x >> 1, y >> 1, obj.gfx_m, obj.flipX != 0);
+					game_hotspot_define(6, obj.cursor);
+				}
             }
 
             pos = advance(pos, rev_look);
@@ -455,6 +461,7 @@ public:
 // ---- corridor main
 
 static CorridorGfx *s_gfx;
+static Slice s_hotbg;
 
 void corridor_init()
 {
@@ -462,11 +469,13 @@ void corridor_init()
 
     s_gfx = new CorridorGfx;
     s_gfx->init("grafix/wand01.gra");
+	s_hotbg = read_file("grafix/corrihot.dat");
 }
 
 void corridor_shutdown()
 {
     delete s_gfx;
+	s_hotbg = Slice();
 }
 
 void corridor_start()
@@ -495,6 +504,10 @@ void corridor_start()
 
 void corridor_render()
 {
+	PixelSlice &hotspots = game_get_hotspots();
+	assert(hotspots.width() * hotspots.height() == s_hotbg.len());
+	memcpy(hotspots.row(0), &s_hotbg[0], s_hotbg.len());
+
     s_gfx->render(player_pos(), player_dir());
 }
 
