@@ -853,7 +853,7 @@ static void cmd_fx()
 
 static void cmd_grafix()
 {
-    // TODO grafix
+    game_reset();
 }
 
 static void cmd_def()
@@ -1190,7 +1190,7 @@ void game_frame()
     frame();
 }
 
-static void game_reset()
+void game_reset()
 {
     clear_anim();
     scroll_disable();

@@ -8,6 +8,7 @@ class Str;
 bool eval_bool_expr(const Slice &expr);
 void game_defer_command(const Str &cmd);
 void game_run_command(const Str &cmd);
+void game_reset();
 void game_frame();
 void game_script_tick();
 void game_script_run(const Slice &script);
